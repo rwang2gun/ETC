@@ -227,8 +227,67 @@ const IconCheck = (props) => (
   </svg>
 );
 
+// ---------- 주문 전송 (Google Sheet via Apps Script) ----------
+// window.SHEET_ENDPOINT 가 비어 있으면 콘솔에 페이로드만 출력 (데모 모드).
+async function submitOrderToSheet(state, variant) {
+  const endpoint = window.SHEET_ENDPOINT;
+  const lines = [];
+  if (state.qty.kg10 > 0) {
+    lines.push({
+      product: '10KG', qty: state.qty.kg10,
+      unit_price: PRODUCTS.kg10.price,
+      subtotal: state.qty.kg10 * PRODUCTS.kg10.price,
+    });
+  }
+  if (state.qty.kg5 > 0) {
+    lines.push({
+      product: '5KG', qty: state.qty.kg5,
+      unit_price: PRODUCTS.kg5.price,
+      subtotal: state.qty.kg5 * PRODUCTS.kg5.price,
+    });
+  }
+  const payload = {
+    variant,
+    timestamp: new Date().toISOString(),
+    lines,
+    qty_5kg: state.qty.kg5,
+    qty_10kg: state.qty.kg10,
+    total_amount: state.total,
+    orderer_name: state.orderer.name,
+    orderer_phone: state.orderer.phone,
+    orderer_zip: state.orderer.zip,
+    orderer_addr: state.orderer.addr,
+    orderer_detail: state.orderer.detail,
+    self_receive: state.selfReceive,
+    receiver_name: state.selfReceive ? state.orderer.name : state.receiver.name,
+    receiver_phone: state.selfReceive ? state.orderer.phone : state.receiver.phone,
+    receiver_zip: state.selfReceive ? state.orderer.zip : state.receiver.zip,
+    receiver_addr: state.selfReceive ? state.orderer.addr : state.receiver.addr,
+    receiver_detail: state.selfReceive ? state.orderer.detail : state.receiver.detail,
+    depositor: state.depositor,
+  };
+  if (!endpoint) {
+    console.log('[MandarinOrder] SHEET_ENDPOINT 미설정 — 데모 모드 (페이로드만 출력)', payload);
+    return { ok: true, demo: true };
+  }
+  try {
+    // text/plain 으로 보내 CORS preflight 회피 (Apps Script 표준 패턴)
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json().catch(() => ({ ok: true }));
+    return data.ok === false ? { ok: false, error: data.error } : { ok: true };
+  } catch (e) {
+    console.error('[MandarinOrder] 주문 전송 실패', e);
+    return { ok: false, error: String(e) };
+  }
+}
+
 Object.assign(window, {
   PRODUCTS, formatPhone, formatWon, useCountUp, useOrderState,
   AddressModal, Toast, StatusBar, PhoneFrame, Stepper, AnimatedWon,
-  IconCopy, IconSearch, IconCheck,
+  IconCopy, IconSearch, IconCheck, submitOrderToSheet,
 });

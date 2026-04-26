@@ -8,6 +8,7 @@ function VariantB() {
   const [toastMsg, setToastMsg] = useStateB('');
   const [toastShow, setToastShow] = useStateB(false);
   const [success, setSuccess] = useStateB(false);
+  const [submitting, setSubmitting] = useStateB(false);
   const toastT = useRefB();
 
   const showToast = (m) => {
@@ -28,7 +29,14 @@ function VariantB() {
   };
   const openAddr = (t) => { setAddrTarget(t); setAddrOpen(true); };
 
-  const onSubmit = () => { if (s.isValid) setSuccess(true); };
+  const onSubmit = async () => {
+    if (!s.isValid || submitting) return;
+    setSubmitting(true);
+    const r = await window.submitOrderToSheet(s, 'B');
+    setSubmitting(false);
+    if (r.ok) setSuccess(true);
+    else showToast('전송에 실패했어요. 잠시 후 다시 시도해 주세요');
+  };
 
   const onNewOrder = () => {
     s.setQty({ kg10: 0, kg5: 0 });
@@ -218,8 +226,9 @@ function VariantB() {
       </div>
 
       <div className="cta-dock" style={{ background: 'white' }}>
-        <button className="cta" disabled={!s.isValid} onClick={onSubmit}>
-          {s.totalCount === 0 ? 'SELECT BOX'
+        <button className="cta" disabled={!s.isValid || submitting} onClick={onSubmit}>
+          {submitting ? 'SENDING…'
+            : s.totalCount === 0 ? 'SELECT BOX'
             : !s.isValid ? 'COMPLETE ALL FIELDS'
             : `ORDER · ${formatWon(s.total)}원`}
         </button>
