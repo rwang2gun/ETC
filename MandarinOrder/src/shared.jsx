@@ -231,9 +231,25 @@ const IconCheck = (props) => (
 // window.SHEET_ENDPOINT 가 비어 있으면 콘솔에 페이로드만 출력 (데모 모드).
 async function submitOrderToSheet(state, variant) {
   const endpoint = window.SHEET_ENDPOINT;
+  const lines = [];
+  if (state.qty.kg10 > 0) {
+    lines.push({
+      product: '10KG', qty: state.qty.kg10,
+      unit_price: PRODUCTS.kg10.price,
+      subtotal: state.qty.kg10 * PRODUCTS.kg10.price,
+    });
+  }
+  if (state.qty.kg5 > 0) {
+    lines.push({
+      product: '5KG', qty: state.qty.kg5,
+      unit_price: PRODUCTS.kg5.price,
+      subtotal: state.qty.kg5 * PRODUCTS.kg5.price,
+    });
+  }
   const payload = {
     variant,
     timestamp: new Date().toISOString(),
+    lines,
     qty_5kg: state.qty.kg5,
     qty_10kg: state.qty.kg10,
     total_amount: state.total,
