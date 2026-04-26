@@ -1,5 +1,7 @@
-/* App wiring: 3 variants in gallery + 노안 모드 tweak */
+/* App wiring: 단일 변형 렌더 + 노안 모드. ACTIVE 만 바꾸면 스타일 교체. */
 const { useState: useStateApp, useEffect: useEffectApp } = React;
+
+const ACTIVE = 'A'; // 'A' | 'B' | 'C'
 
 function App() {
   const [bigFont, setBigFont] = useStateApp(false);
@@ -17,34 +19,8 @@ function App() {
     return () => btn && btn.removeEventListener('click', onClick);
   }, []);
 
-  return (
-    <React.Fragment>
-      <div className="variant-col">
-        <div className="variant-label">
-          <span className="badge">A</span>
-          <h2>따뜻한 자연주의</h2>
-          <small>· 크림 + 오렌지</small>
-        </div>
-        <window.PhoneFrame><window.VariantA /></window.PhoneFrame>
-      </div>
-      <div className="variant-col">
-        <div className="variant-label">
-          <span className="badge">B</span>
-          <h2>미니멀 프리미엄</h2>
-          <small>· 블랙/화이트 + 오렌지 포인트</small>
-        </div>
-        <window.PhoneFrame><window.VariantB /></window.PhoneFrame>
-      </div>
-      <div className="variant-col">
-        <div className="variant-label">
-          <span className="badge">C</span>
-          <h2>농장 편지</h2>
-          <small>· Serif + 손글씨</small>
-        </div>
-        <window.PhoneFrame><window.VariantC /></window.PhoneFrame>
-      </div>
-    </React.Fragment>
-  );
+  const Variant = { A: window.VariantA, B: window.VariantB, C: window.VariantC }[ACTIVE];
+  return <window.PhoneFrame><Variant /></window.PhoneFrame>;
 }
 
-ReactDOM.createRoot(document.getElementById('gallery')).render(<App />);
+ReactDOM.createRoot(document.getElementById('app')).render(<App />);

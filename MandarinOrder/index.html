@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>제주 성전 귤 주문 — 3개 변형</title>
+<title>제주 성전 귤 — 모바일 주문</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -41,51 +41,15 @@
     min-height: 100vh;
   }
 
-  /* ===== Outer page (gallery) ===== */
-  .page-head {
-    padding: 40px 32px 16px;
-    max-width: 1600px; margin: 0 auto;
+  /* ===== Stage (single phone preview) ===== */
+  .stage {
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px 60px;
   }
-  .page-head h1 {
-    font-size: 28px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.02em;
+  @media (max-width: 480px) {
+    .stage { padding: 0; }
   }
-  .page-head p { margin: 0; color: #6B6355; font-size: 14px; line-height: 1.6; }
-  .page-head .dims { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #6B6355; }
-  .page-head .dims b { color: var(--ink); font-weight: 600; }
-
-  .gallery {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(380px, 1fr));
-    gap: 28px;
-    padding: 24px 32px 80px;
-    max-width: 1600px;
-    margin: 0 auto;
-  }
-  @media (max-width: 1280px) {
-    .gallery { grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (max-width: 860px) {
-    .gallery { grid-template-columns: 1fr; }
-  }
-
-  .variant-col {
-    display: flex; flex-direction: column; align-items: center; gap: 14px;
-  }
-  .variant-label {
-    display: flex; align-items: center; gap: 10px;
-    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
-    color: #6B6355;
-  }
-  .variant-label .badge {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px; border-radius: 50%;
-    background: var(--ink); color: white; font-weight: 700; font-size: 12px;
-  }
-  .variant-label h2 {
-    margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); letter-spacing: 0;
-    text-transform: none;
-  }
-  .variant-label small { color: #8B8578; font-size: 12px; }
 
   /* ===== Phone frame ===== */
   .phone {
@@ -1167,17 +1131,7 @@
 </head>
 <body>
 
-<div class="page-head">
-  <h1>제주 성전 귤 — 모바일 주문 페이지</h1>
-  <p>구글 폼의 입력 불편을 해소한 1페이지 전용 주문 사이트. 40~60대 대상, 카톡 공유 링크로 접근.</p>
-  <div class="dims">
-    <span><b>A</b> 따뜻한 자연주의 · 크림 + 오렌지</span>
-    <span><b>B</b> 미니멀 프리미엄 · 블랙/화이트 + 오렌지 포인트</span>
-    <span><b>C</b> 농장 편지 · Serif + 손글씨</span>
-  </div>
-</div>
-
-<div class="gallery" id="gallery">
+<div class="stage" id="app">
   <!-- populated by React -->
 </div>
 
@@ -1191,6 +1145,11 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
+<script>
+  // Google Sheets 연동: 아래 빈 문자열에 Apps Script 웹앱 배포 URL을 넣으면
+  // 주문 완료 시 시트로 POST됩니다. 비워두면 콘솔에 페이로드만 출력하는 데모 모드.
+  window.SHEET_ENDPOINT = '';
+</script>
 <script type="text/babel" src="src/shared.jsx"></script>
 <script type="text/babel" src="src/variantA.jsx"></script>
 <script type="text/babel" src="src/variantB.jsx"></script>

@@ -8,6 +8,7 @@ function VariantC() {
   const [toastMsg, setToastMsg] = useStateC('');
   const [toastShow, setToastShow] = useStateC(false);
   const [success, setSuccess] = useStateC(false);
+  const [submitting, setSubmitting] = useStateC(false);
   const toastT = useRefC();
 
   const showToast = (m) => {
@@ -28,7 +29,14 @@ function VariantC() {
   };
   const openAddr = (t) => { setAddrTarget(t); setAddrOpen(true); };
 
-  const onSubmit = () => { if (s.isValid) setSuccess(true); };
+  const onSubmit = async () => {
+    if (!s.isValid || submitting) return;
+    setSubmitting(true);
+    const r = await window.submitOrderToSheet(s, 'C');
+    setSubmitting(false);
+    if (r.ok) setSuccess(true);
+    else showToast('전송에 실패했어요. 잠시 후 다시 시도해 주세요');
+  };
 
   const onNewOrder = () => {
     s.setQty({ kg10: 0, kg5: 0 });
@@ -243,8 +251,9 @@ function VariantC() {
       </div>
 
       <div className="cta-dock">
-        <button className="cta" disabled={!s.isValid} onClick={onSubmit}>
-          {s.totalCount === 0 ? '귤을 골라주세요'
+        <button className="cta" disabled={!s.isValid || submitting} onClick={onSubmit}>
+          {submitting ? '주문을 보내는 중…'
+            : s.totalCount === 0 ? '귤을 골라주세요'
             : !s.isValid ? '빠진 칸이 있어요'
             : `${formatWon(s.total)}원 · 주문 보내기`}
         </button>
