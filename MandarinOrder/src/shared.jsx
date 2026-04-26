@@ -143,37 +143,16 @@ function Toast({ message, show }) {
   );
 }
 
-// ---------- Status bar ----------
+// ---------- Status bar (no-op — was 9:41 fake mobile chrome) ----------
 function StatusBar() {
-  return (
-    <div className="status-bar">
-      <span>9:41</span>
-      <div className="right">
-        <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor">
-          <rect x="0" y="6" width="3" height="4" rx=".5"/>
-          <rect x="4" y="4" width="3" height="6" rx=".5"/>
-          <rect x="8" y="2" width="3" height="8" rx=".5"/>
-          <rect x="12" y="0" width="3" height="10" rx=".5"/>
-        </svg>
-        <svg width="14" height="10" viewBox="0 0 14 10" fill="none" stroke="currentColor" strokeWidth="1.3">
-          <path d="M1 4a9 9 0 0112 0M3 6a6 6 0 018 0M5 8a3 3 0 014 0"/>
-        </svg>
-        <span className="battery" />
-      </div>
-    </div>
-  );
+  return null;
 }
 
-// ---------- Phone frame ----------
+// ---------- App shell ----------
+// 모바일: 풀스크린, 데스크탑: max-width 480px 중앙정렬 (CSS로 분기)
+// 컴포넌트 이름은 PhoneFrame 그대로 유지 — app.jsx 호환성
 function PhoneFrame({ children }) {
-  return (
-    <div className="phone">
-      <div className="phone-notch" />
-      <div className="phone-screen">
-        {children}
-      </div>
-    </div>
-  );
+  return <div className="app-shell">{children}</div>;
 }
 
 // ---------- Stepper ----------
