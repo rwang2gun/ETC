@@ -1,5 +1,7 @@
-/* App wiring: VariantA only + 노안 모드 */
+/* App wiring: 단일 변형 렌더 + 노안 모드. ACTIVE 만 바꾸면 스타일 교체. */
 const { useState: useStateApp, useEffect: useEffectApp } = React;
+
+const ACTIVE = 'A'; // 'A' | 'B' | 'C'
 
 function App() {
   const [bigFont, setBigFont] = useStateApp(false);
@@ -17,9 +19,8 @@ function App() {
     return () => btn && btn.removeEventListener('click', onClick);
   }, []);
 
-  return (
-    <window.PhoneFrame><window.VariantA /></window.PhoneFrame>
-  );
+  const Variant = { A: window.VariantA, B: window.VariantB, C: window.VariantC }[ACTIVE];
+  return <window.PhoneFrame><Variant /></window.PhoneFrame>;
 }
 
 ReactDOM.createRoot(document.getElementById('app')).render(<App />);
