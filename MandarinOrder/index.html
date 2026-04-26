@@ -1191,6 +1191,11 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
+<script>
+  // Google Sheets 연동: 아래 빈 문자열에 Apps Script 웹앱 배포 URL을 넣으면
+  // 주문 완료 시 시트로 POST됩니다. 비워두면 콘솔에 페이로드만 출력하는 데모 모드.
+  window.SHEET_ENDPOINT = '';
+</script>
 <script type="text/babel" src="src/shared.jsx"></script>
 <script type="text/babel" src="src/variantA.jsx"></script>
 <script type="text/babel" src="src/variantB.jsx"></script>
