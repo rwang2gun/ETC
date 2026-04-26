@@ -41,61 +41,39 @@
     min-height: 100vh;
   }
 
-  /* ===== Stage (single phone preview) ===== */
+  /* ===== App shell (반응형) ===== */
+  /* 모바일(<768px): 풀스크린  /  데스크탑(≥768px): max-width 480px 중앙정렬 카드 */
   .stage {
     display: flex;
     justify-content: center;
-    padding: 40px 16px 60px;
+    align-items: stretch;
+    padding: 0;
+    min-height: 100vh;
   }
-  @media (max-width: 480px) {
-    .stage { padding: 0; }
-  }
-
-  /* ===== Phone frame ===== */
-  .phone {
-    width: 390px;
-    height: 800px;
-    background: #111;
-    border-radius: 48px;
-    padding: 10px;
-    box-shadow: 0 30px 80px rgba(0,0,0,.22), 0 8px 24px rgba(0,0,0,.12);
-    position: relative;
-    flex-shrink: 0;
-  }
-  .phone-screen {
-    width: 100%; height: 100%;
-    border-radius: 38px;
-    overflow: hidden;
-    position: relative;
+  .app-shell {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
     background: var(--cream);
+    position: relative;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
   }
-  .phone-notch {
-    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-    width: 120px; height: 30px; background: #111; border-radius: 0 0 18px 18px;
-    z-index: 50;
-  }
-  .status-bar {
-    height: 44px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 28px 0 24px;
-    font-size: 13px; font-weight: 600;
-    color: var(--ink);
-    position: relative;
-    z-index: 10;
-  }
-  .status-bar .right { display: flex; align-items: center; gap: 5px; }
-  .status-bar .battery {
-    width: 24px; height: 11px; border: 1.2px solid currentColor; border-radius: 3px;
-    position: relative;
-  }
-  .status-bar .battery::after {
-    content: ''; position: absolute; right: -3px; top: 3px; width: 2px; height: 5px;
-    background: currentColor; border-radius: 0 1px 1px 0;
-  }
-  .status-bar .battery::before {
-    content: ''; position: absolute; inset: 1px; width: calc(100% - 6px); background: currentColor; border-radius: 1px;
+  @media (min-width: 768px) {
+    body { background: #E6DFCE; }
+    .stage {
+      padding: 40px 16px;
+      align-items: flex-start;
+    }
+    .app-shell {
+      min-height: calc(100vh - 80px);
+      max-height: calc(100vh - 80px);
+      border-radius: 24px;
+      box-shadow:
+        0 24px 60px rgba(28, 26, 21, 0.12),
+        0 6px 16px rgba(28, 26, 21, 0.06);
+    }
   }
 
   /* Screen body gets its own scroll + bottom CTA overlay */
