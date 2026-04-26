@@ -87,56 +87,43 @@ function useOrderState() {
   };
 }
 
-// ---------- Address search modal (shared) ----------
-const MOCK_ADDR = [
-  { zip: '04524', main: '서울특별시 중구 세종대로 110', old: '서울 중구 태평로1가 31' },
-  { zip: '06236', main: '서울특별시 강남구 테헤란로 152', old: '서울 강남구 역삼동 737' },
-  { zip: '13494', main: '경기도 성남시 분당구 판교역로 166', old: '경기 성남시 분당구 백현동 541' },
-  { zip: '48060', main: '부산광역시 해운대구 해운대로 570', old: '부산 해운대구 우동 1394' },
-  { zip: '63309', main: '제주특별자치도 제주시 1100로 2894-78', old: '제주 제주시 노형동 925' },
-  { zip: '10881', main: '경기도 파주시 회동길 445', old: '경기 파주시 문발동 526' },
-  { zip: '04637', main: '서울특별시 중구 퇴계로 100', old: '서울 중구 회현동1가 100' },
-];
-
+// ---------- Address search modal (Daum Postcode embed) ----------
+// onPick 콜백은 기존 인터페이스 유지: { zip, main } — variant 코드 변경 불필요
 function AddressModal({ open, onClose, onPick, theme = 'a' }) {
-  const [q, setQ] = useState('');
-  useEffect(() => { if (open) setQ(''); }, [open]);
-  const filtered = q.trim()
-    ? MOCK_ADDR.filter(a => a.main.includes(q) || a.old.includes(q) || a.zip.includes(q))
-    : [];
+  const containerRef = useRef();
+
+  useEffect(() => {
+    if (!open || !containerRef.current) return;
+    const el = containerRef.current;
+    el.replaceChildren();
+
+    if (typeof daum === 'undefined' || !daum.Postcode) {
+      const msg = document.createElement('div');
+      msg.style.cssText = 'padding:30px;text-align:center;color:#8B8578;font-size:13px';
+      msg.textContent = '주소 검색을 불러오는 중입니다…';
+      el.appendChild(msg);
+      return;
+    }
+
+    new daum.Postcode({
+      oncomplete: (data) => {
+        onPick({
+          zip: data.zonecode,
+          main: data.roadAddress || data.jibunAddress,
+        });
+      },
+      width: '100%',
+      height: '100%',
+    }).embed(el);
+  }, [open]);
+
   return (
     <div className={`modal-scrim ${open ? 'show' : ''}`} onClick={onClose}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
         <div className="handle" />
         <button className="close-x" onClick={onClose}>×</button>
         <h3>우편번호 검색</h3>
-        <div className="search-box">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B8578" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          <input value={q} onChange={e => setQ(e.target.value)}
-            placeholder="도로명, 건물명, 지번 검색" autoFocus />
-        </div>
-        <div className="results">
-          {q.trim() === '' && (
-            <div className="empty-hint">
-              예) 판교역로, 해운대로, 제주 1100로<br/>
-              <span style={{ color: '#B8B0A0', fontSize: 12 }}>도로명 또는 건물명을 입력하세요</span>
-            </div>
-          )}
-          {q.trim() !== '' && filtered.length === 0 && (
-            <div className="empty-hint">검색 결과가 없어요.<br/>다른 키워드로 시도해 주세요.</div>
-          )}
-          {filtered.map(a => (
-            <div key={a.zip} className="result-item" onClick={() => onPick(a)}>
-              <span className="zip">{a.zip}</span>
-              <div style={{ display: 'inline-block' }}>
-                <div className="addr-main">{a.main}</div>
-                <div className="addr-old">(지번) {a.old}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <div ref={containerRef} style={{ flex: 1, minHeight: 0, marginTop: 8, overflow: 'hidden' }} />
       </div>
     </div>
   );
