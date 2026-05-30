@@ -112,22 +112,26 @@ def analyze(data, ym: str) -> dict:
     house = defaultdict(int)                          # 분류별 실가계소비
     items = defaultdict(lambda: defaultdict(int))     # 분류 → 내역 → 금액
     pay = defaultdict(int)                            # 복지포인트 사용(분류별)
+    assets = defaultdict(lambda: defaultdict(int))    # 자산 → 분류 → 금액(포함 소비)
+    asset_excl = defaultdict(lambda: defaultdict(int))  # 자산 → 사유 → 금액(제외)
     cardbill = charge = saving = dup = 0
     for r in d:
         if r[COL["type"]] != "지출":
             continue
         a = amt(r[COL["amount"]])
+        asset = r[COL["asset"]]
         if is_dup(r):
-            dup += a; continue
+            dup += a; asset_excl[asset]["이중입력"] += a; continue
         if r[COL["cat"]] in CARDBILL_CAT:
-            cardbill += a; continue
+            cardbill += a; asset_excl[asset]["카드대금(이체)"] += a; continue
         if is_charge(r):
-            charge += a; continue
-        if r[COL["asset"]] in PAYCO_ASSETS:
-            pay[r[COL["cat"]]] += a; continue
+            charge += a; asset_excl[asset]["충전(이체)"] += a; continue
+        if asset in PAYCO_ASSETS:
+            pay[r[COL["cat"]]] += a; asset_excl[asset]["복지포인트(별도)"] += a; continue
         cat = reclassify(r)
         house[cat] += a
         items[cat][r[COL["desc"]] or "(내역없음)"] += a
+        assets[asset][cat] += a
         if cat in SAVING_CATS:
             saving += a
 
@@ -153,6 +157,8 @@ def analyze(data, ym: str) -> dict:
         groups[group_of(c)] += v
     return dict(ym=ym, house=dict(house), real=real, reg=reg,
                 groups=dict(groups), items={c: dict(v) for c, v in items.items()},
+                assets={a: dict(c) for a, c in assets.items()},
+                asset_excl={a: dict(c) for a, c in asset_excl.items()},
                 oneoff=sum(x[2] for x in oneoff),
                 oneoff_list=sorted(oneoff, key=lambda x: -x[2]),
                 payspend=sum(pay.values()), payin=payin,
@@ -383,6 +389,45 @@ def build_var_section(stats: list) -> str:
             f'‘분류별 실가계소비’에서 항목을 눌러 확인하세요.</p></section>')
 
 
+def build_asset_section(stats: list) -> str:
+    """자산별 지출 드롭다운 — 자산을 누르면 분류별 지출 + 제외분(이체·복지·중복)."""
+    if not any(s.get("assets") or s.get("asset_excl") for s in stats):
+        return ""
+    multi = len(stats) > 1
+    blocks = ""
+    for s in stats:
+        assets = s["assets"]; excl = s["asset_excl"]
+        names = set(assets) | set(excl)
+        if not names:
+            continue
+        incl_tot = {a: sum(assets.get(a, {}).values()) for a in names}
+        mx = max(incl_tot.values()) or 1
+        if multi:
+            blocks += f'<h3 style="font-size:14px;margin:14px 0 6px">{s["ym"]}</h3>'
+        for a in sorted(names, key=lambda x: -incl_tot[x]):
+            inc = incl_tot[a]
+            cats = assets.get(a, {})
+            catrows = "".join(
+                f'<tr><td>{_gbadge(c)} {c}</td><td class="num">{won(v)}</td></tr>'
+                for c, v in sorted(cats.items(), key=lambda x: -x[1])
+            ) or '<tr><td colspan="2" style="color:#9aa3ad">포함된 소비 없음</td></tr>'
+            exnote = ""
+            if excl.get(a):
+                ex = " · ".join(f"{why} {won(v)}"
+                                for why, v in sorted(excl[a].items(), key=lambda x: -x[1]))
+                exnote = f'<div class="exnote">제외(이체·별도장부): {ex}</div>'
+            blocks += f'''<details class="acc">
+              <summary><span class="accbar" style="width:{inc / mx * 100:.0f}%"></span>
+                <span class="accname">{a}</span>
+                <span class="accamt">{won(inc)}원 포함</span></summary>
+              <div class="accbody"><table><tbody>{catrows}</tbody></table>{exnote}</div>
+            </details>'''
+    return (f'<section><h2>💳 자산별 지출 <span style="color:var(--mut);font-size:13px">'
+            f'(포함 = 실가계소비 / 제외 = 이체·복지·중복)</span></h2>'
+            f'<p style="font-size:12.5px;color:#9aa3ad;margin:-4px 0 10px">▸ 자산을 누르면 분류별 지출이 펼쳐집니다</p>'
+            f'{blocks}</section>')
+
+
 def _oneoff_rows(s):
     if not s["oneoff_list"]:
         return '<tr><td colspan="4" style="color:#9aa3ad">없음</td></tr>'
@@ -414,6 +459,7 @@ def build_html(stats: list, chart_b64: str | None, src_name: str, trend: list | 
              if chart_b64 else "")
     trend_section = build_trend_section(trend) if trend else ""
     var_section = build_var_section(stats)
+    asset_section = build_asset_section(stats)
     period = stats[0]["ym"] if len(stats) == 1 else f'{stats[0]["ym"]} ~ {stats[-1]["ym"]}'
 
     detail = ""
@@ -485,6 +531,7 @@ details.acc .accbody{{padding:2px 14px 12px 32px}}
 details.acc .accbody table{{font-size:13px}}
 details.acc .accbody td{{border-bottom:1px solid #f0f2f4;padding:5px 6px}}
 details.acc .accbody td:last-child{{color:var(--ink)}}
+.exnote{{margin-top:8px;padding:7px 10px;background:#f6f8fa;border-radius:8px;font-size:12px;color:var(--mut);line-height:1.5}}
 .wfbox{{background:#f7f3ff;border:1px solid #e4d7f5;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13.5px}}
 ul.tips{{margin:6px 0 0;padding-left:18px;font-size:13.5px}} ul.tips li{{margin:6px 0}}
 .foot{{color:var(--mut);font-size:12px;text-align:center;margin-top:24px}}
@@ -500,6 +547,7 @@ ul.tips{{margin:6px 0 0;padding-left:18px;font-size:13.5px}} ul.tips li{{margin:
 {trend_section}
 {var_section}
 {detail}
+{asset_section}
 <section><h2>🔧 작성 개선 제안</h2><ul class="tips">
 <li><b>카드대금 결제 → ‘이체’</b>로 기록(현금→카드). 개별 결제만 한 번 잡혀 중복이 사라집니다.</li>
 <li><b>복지포인트 → 별도 자산</b>으로 두고 지급은 충전, 사용은 차감. 가계 현금과 섞지 않기.</li>
