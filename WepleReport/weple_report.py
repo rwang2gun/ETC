@@ -485,125 +485,156 @@ def _card(s):
     </div>'''
 
 
-def build_html(stats: list, chart_b64: str | None, src_name: str, trend: list | None = None) -> str:
-    cards = "".join(_card(s) for s in stats)
-    chart = (f'<div class="chart"><img alt="차트" src="data:image/png;base64,{chart_b64}"></div>'
-             if chart_b64 else "")
-    trend_section = build_trend_section(trend) if trend else ""
-    var_section = build_var_section(stats)
-    asset_section = build_asset_section(stats)
-    period = stats[0]["ym"] if len(stats) == 1 else f'{stats[0]["ym"]} ~ {stats[-1]["ym"]}'
-
-    detail = ""
-    for s in stats:
-        detail += f'''<section><h2><span class="tag">{s["ym"]}</span> 분류별 실가계소비
+def _month_detail(s) -> str:
+    """한 달의 '분류별 실가계소비'(드롭다운) + 복지포인트 + 일회성 유입 + 통과성 주석."""
+    detail = f'''<section><h2><span class="tag">{s["ym"]}</span> 분류별 실가계소비
         <span style="color:var(--mut);font-size:13px">({won(s["real"])}원)</span></h2>
         <p style="font-size:12.5px;color:#9aa3ad;margin:-4px 0 10px">▸ 분류를 누르면 세부 내역이 펼쳐집니다</p>
         {_cat_accordion(s)}'''
-        # 복지포인트 별도 장부
-        if s["payin"] or s["payspend"]:
-            bal = s["payin"] - s["payspend"]
-            detail += f'''<div class="wfbox"><b>복지포인트(페이코) 별도</b> ·
+    if s["payin"] or s["payspend"]:
+        bal = s["payin"] - s["payspend"]
+        detail += f'''<div class="wfbox"><b>복지포인트(페이코) 별도</b> ·
               지급 {won(s["payin"])} / 사용 {won(s["payspend"])} /
               잔여 {'+' if bal >= 0 else ''}{won(bal)}원</div>'''
-        # 일회성 유입 + 통과성 주석
-        detail += f'''<h3 style="font-size:14px;margin:14px 0 6px">일회성 유입 ({won(s["oneoff"])}원, 복지포인트 제외)</h3>
+    detail += f'''<h3 style="font-size:14px;margin:14px 0 6px">일회성 유입 ({won(s["oneoff"])}원, 복지포인트 제외)</h3>
         <table><thead><tr><th>날짜</th><th>분류</th><th class="num">금액</th><th>내역</th></tr></thead>
         <tbody>{_oneoff_rows(s)}</tbody></table>'''
-        if s["passthrough"]:
-            items = "".join(
-                f'<li>수입 {won(v)}원 (<b>{m}</b>) ↔ 비슷한 지출 {won(hit[0])}원 [{hit[1]}/{hit[2]}] '
-                f'— 통과성 가능(자동 상쇄 안 함)</li>'
-                for v, m, hit in s["passthrough"])
-            detail += f'<div class="note pt"><b>🔎 통과성 의심(주석)</b><ul class="tips">{items}</ul></div>'
-        detail += "</section>"
+    if s["passthrough"]:
+        items = "".join(
+            f'<li>수입 {won(v)}원 (<b>{m}</b>) ↔ 비슷한 지출 {won(hit[0])}원 [{hit[1]}/{hit[2]}] '
+            f'— 통과성 가능(자동 상쇄 안 함)</li>'
+            for v, m, hit in s["passthrough"])
+        detail += f'<div class="note pt"><b>🔎 통과성 의심(주석)</b><ul class="tips">{items}</ul></div>'
+    return detail + "</section>"
 
-    return f'''<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>위플 가계부 리포트</title>
-<style>
-:root{{--blue:#4a86e8;--red:#e06666;--ink:#1f2933;--mut:#6b7684;--line:#e5e8eb;--bg:#f5f6f8}}
-*{{box-sizing:border-box}}
-body{{margin:0;background:var(--bg);color:var(--ink);line-height:1.55;
- font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif}}
-.wrap{{max-width:880px;margin:0 auto;padding:20px 16px 60px}}
-h1{{font-size:23px;margin:8px 0 4px}} .sub{{color:var(--mut);font-size:13px;margin-bottom:18px}}
-.note{{background:#fff7e6;border:1px solid #ffe1a8;border-radius:10px;padding:12px 14px;font-size:13.5px;margin:14px 0}}
-.note b{{color:#b26a00}} .note.pt{{background:#eef4ff;border-color:#c9daf8}} .note.pt b{{color:#1c4587}}
-.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:18px 0}}
-.card{{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}} .card h3{{margin:0 0 10px;font-size:16px}}
-.kv{{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:14px}}
-.kv span{{color:var(--mut)}} .kv b{{font-variant-numeric:tabular-nums}} .kv .exp{{color:var(--red)}}
-.balance{{margin-top:6px;border-top:1px dashed var(--line);padding-top:8px}} .balance b{{font-size:16px}}
-.pos b{{color:#1a8754}} .neg b{{color:#cc0000}} .muted span{{font-size:12.5px;color:#9aa3ad}}
-.chart{{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;margin:18px 0}}
-.chart img{{width:100%;height:auto;border-radius:8px}}
-section{{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:16px 0}}
-section h2{{font-size:18px;margin:0 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}}
-.tag{{font-size:12px;font-weight:600;color:#fff;background:var(--blue);padding:2px 8px;border-radius:999px}}
-table{{width:100%;border-collapse:collapse;font-size:13.5px}}
-th,td{{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}}
-th{{color:var(--mut);font-weight:600;font-size:12.5px}}
-td.num,th.num{{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}}
-.barcell{{width:34%}} .bar{{display:inline-block;height:9px;border-radius:5px;background:var(--blue)}}
-.gt{{font-size:10.5px;font-weight:600;color:#fff;padding:1px 6px;border-radius:999px;margin-right:3px;vertical-align:middle}}
-.gt.gfix{{background:#4a86e8}} .gt.gvar{{background:#e06666}} .gt.gsave{{background:#6aa84f}}
-table.trend tr.grouprow.gfix{{background:#eef4ff}} table.trend tr.grouprow.gvar{{background:#fdf2f2}} table.trend tr.grouprow.gsave{{background:#eff7ee}}
-table.trend tr.grouprow td{{border-bottom:1px solid #d4dbe3}}
-details.acc{{position:relative;border:1px solid var(--line);border-radius:10px;margin:7px 0;background:#fff;overflow:hidden}}
-details.acc>summary{{list-style:none;cursor:pointer;display:flex;align-items:center;gap:7px;padding:11px 14px;font-size:14px;position:relative}}
-details.acc>summary::-webkit-details-marker{{display:none}}
-details.acc>summary::before{{content:"▸";color:#9aa3ad;font-size:11px;transition:transform .15s;flex:0 0 auto}}
-details.acc[open]>summary::before{{transform:rotate(90deg)}}
-details.acc>summary:hover{{background:#fafbfc}}
-.accbar{{position:absolute;left:0;bottom:0;height:3px;background:var(--blue);opacity:.5}}
-.accname{{font-weight:500}}
-.accamt{{margin-left:auto;color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}}
-details.acc .accbody{{padding:2px 14px 12px 32px}}
-details.acc .accbody table{{font-size:13px}}
-details.acc .accbody td{{border-bottom:1px solid #f0f2f4;padding:5px 6px}}
-details.acc .accbody td:last-child{{color:var(--ink)}}
-.exnote{{margin-top:8px;padding:7px 10px;background:#f6f8fa;border-radius:8px;font-size:12px;color:var(--mut);line-height:1.5}}
-.trendtbl{{border:1px solid var(--line);border-radius:10px;overflow:hidden}}
-.trendhead,.trendgrp,details.tacc>summary,.tirow{{display:grid;align-items:center;gap:6px;padding:8px 12px}}
-.trendhead{{background:#f7f8fa;font-size:12px;color:var(--mut);font-weight:600}}
-.trendgrp{{background:#eef4ff;border-top:1px solid var(--line);font-size:13px}}
-.trendgrp.gvar{{background:#fdf2f2}} .trendgrp.gsave{{background:#eff7ee}}
-.tnum{{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}}
-details.tacc{{border-top:1px solid var(--line)}}
-details.tacc>summary{{list-style:none;cursor:pointer;font-size:13px}}
-details.tacc>summary::-webkit-details-marker{{display:none}}
-details.tacc>summary:hover{{background:#fafbfc}}
-.tarrow{{display:inline-block;width:12px;color:#9aa3ad;font-size:10px;transition:transform .15s}}
-details.tacc[open] .tarrow{{transform:rotate(90deg)}}
-.tibody{{background:#fbfcfd;border-top:1px dashed var(--line)}}
-.tirow{{padding:5px 12px 5px 26px;font-size:12px;color:var(--mut);border-bottom:1px solid #f0f2f4}}
-.tirow:last-child{{border-bottom:none}}
-.tirow>span:first-child{{word-break:break-all}}
-.wfbox{{background:#f7f3ff;border:1px solid #e4d7f5;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13.5px}}
-ul.tips{{margin:6px 0 0;padding-left:18px;font-size:13.5px}} ul.tips li{{margin:6px 0}}
-.foot{{color:var(--mut);font-size:12px;text-align:center;margin-top:24px}}
-</style></head><body><div class="wrap">
-<h1>📊 위플 가계부 리포트 · {period}</h1>
-<div class="sub">원본: {src_name} · weple_report.py 자동 생성</div>
-<div class="note"><b>보정 방법</b><br>
+
+def build_month_body(s, chart_b64: str | None, trend: list | None) -> str:
+    """한 달치 본문(요약 카드 + 차트 + 추세 + 변동도넛 + 분류상세 + 자산별)."""
+    cards = f'<div class="cards">{_card(s)}</div>'
+    chart = (f'<div class="chart"><img alt="차트" src="data:image/png;base64,{chart_b64}"></div>'
+             if chart_b64 else "")
+    trend_section = build_trend_section(trend) if trend else ""
+    return (cards + chart + trend_section + build_var_section([s])
+            + _month_detail(s) + build_asset_section([s]))
+
+
+NOTE_HTML = '''<div class="note"><b>보정 방법</b><br>
 ① 카드대금 납부 = 이체로 제외 &nbsp; ② 페이코(복지포인트) = 별도 장부 분리<br>
 ③ 충전형 페이카드 = 충전 이체·실제 사용만 소비 &nbsp; ④ 이중입력 수동 제거<br>
-→ <b>실가계소비 = 현금 + 신용카드 + 충전카드 실사용</b> 기준. 통과성 거래는 상쇄하지 않고 주석으로 표시.</div>
-<div class="cards">{cards}</div>
-{chart}
-{trend_section}
-{var_section}
-{detail}
-{asset_section}
-<section><h2>🔧 작성 개선 제안</h2><ul class="tips">
+→ <b>실가계소비 = 현금 + 신용카드 + 충전카드 실사용</b> 기준. 통과성 거래는 상쇄하지 않고 주석으로 표시.</div>'''
+
+TIPS_HTML = '''<section><h2>🔧 작성 개선 제안</h2><ul class="tips">
 <li><b>카드대금 결제 → ‘이체’</b>로 기록(현금→카드). 개별 결제만 한 번 잡혀 중복이 사라집니다.</li>
 <li><b>복지포인트 → 별도 자산</b>으로 두고 지급은 충전, 사용은 차감. 가계 현금과 섞지 않기.</li>
 <li><b>충전형 페이카드 → 충전은 ‘이체’</b>, 실제 결제만 소비, 잔액은 자산 유지.</li>
 <li><b>같은 지출을 두 사람이 각자 입력</b>하지 않도록 입력 규칙 맞추기.</li>
 </ul></section>
-<div class="foot">통과성·자산성 항목은 차감하지 않고 주석으로만 표시했습니다. 규칙은 weple_report.py 상단 CONFIG에서 수정하세요.</div>
+<div class="foot">통과성·자산성 항목은 차감하지 않고 주석으로만 표시했습니다. 규칙은 weple_report.py 상단 CONFIG에서 수정하세요.</div>'''
+
+
+def _doc(period: str, src_name: str, inner: str, extra_css: str = "") -> str:
+    return f'''<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>위플 가계부 리포트</title>
+<style>{STYLE}{extra_css}</style></head><body><div class="wrap">
+<h1>📊 위플 가계부 리포트 · {period}</h1>
+<div class="sub">원본: {src_name} · weple_report.py 자동 생성</div>
+{NOTE_HTML}
+{inner}
+{TIPS_HTML}
 </div></body></html>'''
+
+
+def build_html(stats: list, chart_b64: str | None, src_name: str, trend: list | None = None) -> str:
+    period = stats[0]["ym"] if len(stats) == 1 else f'{stats[0]["ym"]} ~ {stats[-1]["ym"]}'
+    inner = "".join(build_month_body(s, chart_b64, trend) for s in stats)
+    return _doc(period, src_name, inner)
+
+
+def build_tabbed_html(payloads: list, src_name: str) -> str:
+    """월별 본문을 탭(CSS only)으로 묶은 단일 HTML. payloads=[(s, chart_b64, trend), ...]."""
+    months = [p[0]["ym"] for p in payloads]
+    inputs = "".join(
+        f'<input type="radio" name="wtab" class="wtabin" id="t_{ym}"{" checked" if i == 0 else ""}>'
+        for i, ym in enumerate(months))
+    labels = "".join(f'<label for="t_{ym}">{ym[2:4]}.{ym[5:7]}</label>' for ym in months)
+    panels = "".join(
+        f'<div class="wpanel" id="p_{ym}">{build_month_body(s, chart, trend)}</div>'
+        for (s, chart, trend), ym in zip(payloads, months))
+    rules = "\n".join(
+        f'#t_{ym}:checked~.tabbar label[for="t_{ym}"]{{background:var(--ink);color:#fff;border-color:var(--ink)}}'
+        f' #t_{ym}:checked~.panels #p_{ym}{{display:block}}'
+        for ym in months)
+    extra = ('.wtabin{display:none}'
+             '.tabbar{display:flex;gap:6px;overflow-x:auto;padding:4px 0 14px;-webkit-overflow-scrolling:touch}'
+             '.tabbar label{flex:0 0 auto;cursor:pointer;padding:8px 15px;border:1px solid var(--line);'
+             'border-radius:999px;background:#fff;font-size:13px;font-weight:600;color:var(--mut);white-space:nowrap}'
+             '.wpanel{display:none}\n' + rules)
+    inner = f'{inputs}<div class="tabbar">{labels}</div><div class="panels">{panels}</div>'
+    return _doc(f'{months[0]} ~ {months[-1]}', src_name, inner, extra_css=extra)
+
+
+STYLE = '''
+:root{--blue:#4a86e8;--red:#e06666;--ink:#1f2933;--mut:#6b7684;--line:#e5e8eb;--bg:#f5f6f8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.55;
+ font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif}
+.wrap{max-width:880px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:23px;margin:8px 0 4px} .sub{color:var(--mut);font-size:13px;margin-bottom:18px}
+.note{background:#fff7e6;border:1px solid #ffe1a8;border-radius:10px;padding:12px 14px;font-size:13.5px;margin:14px 0}
+.note b{color:#b26a00} .note.pt{background:#eef4ff;border-color:#c9daf8} .note.pt b{color:#1c4587}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:18px 0}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px} .card h3{margin:0 0 10px;font-size:16px}
+.kv{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:14px}
+.kv span{color:var(--mut)} .kv b{font-variant-numeric:tabular-nums} .kv .exp{color:var(--red)}
+.balance{margin-top:6px;border-top:1px dashed var(--line);padding-top:8px} .balance b{font-size:16px}
+.pos b{color:#1a8754} .neg b{color:#cc0000} .muted span{font-size:12.5px;color:#9aa3ad}
+.chart{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;margin:18px 0}
+.chart img{width:100%;height:auto;border-radius:8px}
+section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:16px 0}
+section h2{font-size:18px;margin:0 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tag{font-size:12px;font-weight:600;color:#fff;background:var(--blue);padding:2px 8px;border-radius:999px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--mut);font-weight:600;font-size:12.5px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.barcell{width:34%} .bar{display:inline-block;height:9px;border-radius:5px;background:var(--blue)}
+.gt{font-size:10.5px;font-weight:600;color:#fff;padding:1px 6px;border-radius:999px;margin-right:3px;vertical-align:middle}
+.gt.gfix{background:#4a86e8} .gt.gvar{background:#e06666} .gt.gsave{background:#6aa84f}
+details.acc{position:relative;border:1px solid var(--line);border-radius:10px;margin:7px 0;background:#fff;overflow:hidden}
+details.acc>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:7px;padding:11px 14px;font-size:14px;position:relative}
+details.acc>summary::-webkit-details-marker{display:none}
+details.acc>summary::before{content:"▸";color:#9aa3ad;font-size:11px;transition:transform .15s;flex:0 0 auto}
+details.acc[open]>summary::before{transform:rotate(90deg)}
+details.acc>summary:hover{background:#fafbfc}
+.accbar{position:absolute;left:0;bottom:0;height:3px;background:var(--blue);opacity:.5}
+.accname{font-weight:500}
+.accamt{margin-left:auto;color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}
+details.acc .accbody{padding:2px 14px 12px 32px}
+details.acc .accbody table{font-size:13px}
+details.acc .accbody td{border-bottom:1px solid #f0f2f4;padding:5px 6px}
+details.acc .accbody td:last-child{color:var(--ink)}
+.exnote{margin-top:8px;padding:7px 10px;background:#f6f8fa;border-radius:8px;font-size:12px;color:var(--mut);line-height:1.5}
+.trendtbl{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.trendhead,.trendgrp,details.tacc>summary,.tirow{display:grid;align-items:center;gap:6px;padding:8px 12px}
+.trendhead{background:#f7f8fa;font-size:12px;color:var(--mut);font-weight:600}
+.trendgrp{background:#eef4ff;border-top:1px solid var(--line);font-size:13px}
+.trendgrp.gvar{background:#fdf2f2} .trendgrp.gsave{background:#eff7ee}
+.tnum{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}
+details.tacc{border-top:1px solid var(--line)}
+details.tacc>summary{list-style:none;cursor:pointer;font-size:13px}
+details.tacc>summary::-webkit-details-marker{display:none}
+details.tacc>summary:hover{background:#fafbfc}
+.tarrow{display:inline-block;width:12px;color:#9aa3ad;font-size:10px;transition:transform .15s}
+details.tacc[open] .tarrow{transform:rotate(90deg)}
+.tibody{background:#fbfcfd;border-top:1px dashed var(--line)}
+.tirow{padding:5px 12px 5px 26px;font-size:12px;color:var(--mut);border-bottom:1px solid #f0f2f4}
+.tirow:last-child{border-bottom:none}
+.tirow>span:first-child{word-break:break-all}
+.wfbox{background:#f7f3ff;border:1px solid #e4d7f5;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13.5px}
+ul.tips{margin:6px 0 0;padding-left:18px;font-size:13.5px} ul.tips li{margin:6px 0}
+.foot{color:var(--mut);font-size:12px;text-align:center;margin-top:24px}
+'''
 
 
 def months_in(data) -> list:
@@ -637,25 +668,41 @@ def main():
     ap.add_argument("-o", "--out", default="weple_report.html", help="출력 HTML 경로")
     ap.add_argument("-t", "--trend", type=int, default=3, metavar="N",
                     help="추세 분석 개월 수(기본 3, 0이면 끔)")
+    ap.add_argument("--tabs", action="store_true",
+                    help="여러 달을 탭으로 묶은 단일 HTML로 생성")
     args = ap.parse_args()
 
     _, data = load(args.csv)
-    months = args.months or months_in(data)
+    months = sorted(args.months or months_in(data))
     src = args.csv.split("/")[-1]
     stem = args.out[:-5] if args.out.lower().endswith(".html") else args.out
-    single = len(months) == 1
 
-    # 한 페이지(=HTML 1개)에 한 달만. 추세는 '그 달 기준' 최근 N개월.
+    def month_trend(ym):
+        if args.trend and args.trend >= 2:
+            return [analyze(data, prev_month(ym, k)) for k in range(args.trend - 1, -1, -1)]
+        return None
+
+    # 탭 모드: 달마다 본문을 만들어 하나의 HTML에 탭으로 묶음
+    if args.tabs and len(months) > 1:
+        payloads = []
+        for ym in months:
+            s = analyze(data, ym)
+            print(f"{s['ym']}  정기수입 {won(s['reg']):>12}  실가계소비 {won(s['real']):>12}  "
+                  f"수지 {won(s['reg'] - s['real']):>12}")
+            payloads.append((s, build_chart([s]), month_trend(ym)))
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(build_tabbed_html(payloads, src))
+        print(f"  ✅ (탭 {len(months)}개월) → {args.out}")
+        return
+
+    # 기본: 한 페이지(=HTML 1개)에 한 달만. 추세는 '그 달 기준' 최근 N개월.
+    single = len(months) == 1
     for ym in months:
         s = analyze(data, ym)
         print(f"{s['ym']}  정기수입 {won(s['reg']):>12}  실가계소비 {won(s['real']):>12}  "
               f"수지 {won(s['reg'] - s['real']):>12}")
-        trend = None
-        if args.trend and args.trend >= 2:
-            tmonths = [prev_month(ym, k) for k in range(args.trend - 1, -1, -1)]
-            trend = [analyze(data, m) for m in tmonths]
         chart = build_chart([s])
-        html = build_html([s], chart, src_name=src, trend=trend)
+        html = build_html([s], chart, src_name=src, trend=month_trend(ym))
         out = args.out if single else f"{stem}_{ym}.html"
         with open(out, "w", encoding="utf-8") as f:
             f.write(html)

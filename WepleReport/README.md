@@ -19,6 +19,9 @@ python weple_report.py weple_20260530.csv -m 2026-04 2026-05 -o report.html
 # CSV 안의 모든 달을 각각 한 파일씩
 python weple_report.py weple_20260530.csv
 
+# 여러 달을 '탭'으로 묶은 단일 HTML (상단 탭으로 월 전환)
+python weple_report.py weple_20260530.csv -m 2025-12 2026-01 2026-02 2026-03 2026-04 2026-05 --tabs -o report.html
+
 # 추세 개월 수 조정(기본 3) / 끄기(0)
 python weple_report.py weple_20260530.csv -m 2026-05 -t 6
 ```
