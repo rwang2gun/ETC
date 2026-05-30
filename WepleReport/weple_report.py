@@ -70,14 +70,21 @@ RECLASSIFY = {
 RECLASSIFY_DESC = {
     "주택담보대출": "주담대상환",  # 주거/공과금에서 주담대 상환을 따로 분리
 }
+# 분류 병합: {원분류: 합칠분류} — 한 분류를 다른 분류에 통째로 합침
+CATEGORY_MERGE = {
+    "선물": "경조사",  # 선물을 경조사에 합침
+}
 def reclassify(r) -> str:
     key = (r[COL["date"]], r[COL["desc"]])
     if key in RECLASSIFY:
-        return RECLASSIFY[key]
-    for kw, cat in RECLASSIFY_DESC.items():
-        if kw in r[COL["desc"]]:
-            return cat
-    return r[COL["cat"]]
+        cat = RECLASSIFY[key]
+    else:
+        cat = r[COL["cat"]]
+        for kw, c in RECLASSIFY_DESC.items():
+            if kw in r[COL["desc"]]:
+                cat = c
+                break
+    return CATEGORY_MERGE.get(cat, cat)
 
 # 통과성('대신 결제 후 송금받음') 자동 탐지: 같은 달 일회성 수입과 ±오차 내 금액의
 # 지출이 있으면 주석으로 표시(자동 상쇄는 하지 않음)
