@@ -62,6 +62,15 @@ DEDUP = {
     ("2026-05-03", "김용호-건설비용", 500000),  # 5/1 아버님건축비용과 동일한 돈(이중입력)
 }
 
+# 거래 단위 제외: (거래일, 내역, 금액) → 사유. 소비에서 빼고 '제외'로 표시(이체·정정 등)
+EXCLUDE_TX = {
+    ("2025-12-02", "주식", 10000000): "기존자산→투자전환(이체)",  # 남은 자산을 투자금으로 전환
+}
+# 금액 정정: (거래일, 내역, 잘못된금액) → 올바른금액
+AMOUNT_FIX = {
+    ("2025-11-26", "", 33000): 330000,  # 11월 용돈 33만원을 3.3만원으로 오입력
+}
+
 # 분류 재지정: (거래일, 내역) → 새 분류 (잘못 들어간 분류 바로잡기)
 RECLASSIFY = {
     ("2026-05-01", "김수희-아버님건축비용"): "경조사",  # 어버이날 선물 겸 → 경조사
@@ -126,7 +135,11 @@ def analyze(data, ym: str) -> dict:
         if r[COL["type"]] != "지출":
             continue
         a = amt(r[COL["amount"]])
+        a = AMOUNT_FIX.get((r[COL["date"]], r[COL["desc"]], a), a)  # 금액 정정
         asset = r[COL["asset"]]
+        why = EXCLUDE_TX.get((r[COL["date"]], r[COL["desc"]], a))
+        if why:
+            asset_excl[asset][why] += a; continue
         if is_dup(r):
             dup += a; asset_excl[asset]["이중입력"] += a; continue
         if r[COL["cat"]] in CARDBILL_CAT:
