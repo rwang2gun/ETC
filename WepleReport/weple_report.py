@@ -38,7 +38,7 @@ SAVING_CATS    = {"저축/적금", "청약", "주식투자", "투자", "대출�
 
 # 지출 그룹 구분: 고정(매달 비슷한 의무성) / 저축·투자 / 나머지는 변동
 # 교육(학원비)은 매달 금액이 바뀌어 변동으로 둠 — 고정으로 보려면 아래에 "교육" 추가
-FIXED_CATS     = {"주거/공과금", "보험", "통신비", "용돈"}  # 고정지출 분류
+FIXED_CATS     = {"주거/공과금", "보험", "통신비", "용돈", "주담대상환"}  # 고정지출 분류
 GROUP_FIXED, GROUP_VAR, GROUP_SAVE = "고정", "변동", "저축·투자"
 def group_of(cat: str) -> str:
     if cat in SAVING_CATS:
@@ -66,8 +66,18 @@ DEDUP = {
 RECLASSIFY = {
     ("2026-05-01", "김수희-아버님건축비용"): "경조사",  # 어버이날 선물 겸 → 경조사
 }
+# 내역 키워드 → 새 분류 (매달 반복되는 항목을 분리). 내역에 키워드가 들어가면 적용.
+RECLASSIFY_DESC = {
+    "주택담보대출": "주담대상환",  # 주거/공과금에서 주담대 상환을 따로 분리
+}
 def reclassify(r) -> str:
-    return RECLASSIFY.get((r[COL["date"]], r[COL["desc"]]), r[COL["cat"]])
+    key = (r[COL["date"]], r[COL["desc"]])
+    if key in RECLASSIFY:
+        return RECLASSIFY[key]
+    for kw, cat in RECLASSIFY_DESC.items():
+        if kw in r[COL["desc"]]:
+            return cat
+    return r[COL["cat"]]
 
 # 통과성('대신 결제 후 송금받음') 자동 탐지: 같은 달 일회성 수입과 ±오차 내 금액의
 # 지출이 있으면 주석으로 표시(자동 상쇄는 하지 않음)
@@ -221,14 +231,21 @@ def _gbadge(cat: str) -> str:
     return f'<span class="gt {_GTAG[g]}">{g}</span>'
 
 
-def _cat_rows(s):
+def _cat_accordion(s):
+    """큰 카테고리별 드롭다운(<details>) — 펼치면 내역 목록."""
     if not s["house"]:
-        return '<tr><td colspan="4" style="color:#9aa3ad">소비 내역 없음</td></tr>'
+        return '<p style="color:#9aa3ad;font-size:13.5px">소비 내역 없음</p>'
     mx = max(s["house"].values()); real = s["real"]; out = []
     for c, v in sorted(s["house"].items(), key=lambda x: -x[1]):
-        out.append(f'<tr><td>{_gbadge(c)} {c}</td><td class="num">{won(v)}</td>'
-                   f'<td class="num">{v / real * 100:.1f}%</td>'
-                   f'<td class="barcell"><span class="bar" style="width:{v / mx * 100:.1f}%"></span></td></tr>')
+        its = sorted(s["items"].get(c, {}).items(), key=lambda x: -x[1])
+        rows = "".join(f'<tr><td>{d}</td><td class="num">{won(a)}</td></tr>' for d, a in its) \
+            or '<tr><td colspan="2" style="color:#9aa3ad">내역 없음</td></tr>'
+        out.append(f'''<details class="acc">
+          <summary><span class="accbar" style="width:{v / mx * 100:.0f}%"></span>
+            {_gbadge(c)} <span class="accname">{c}</span>
+            <span class="accamt">{won(v)}원 · {v / real * 100:.0f}%</span></summary>
+          <div class="accbody"><table><tbody>{rows}</tbody></table></div>
+        </details>''')
     return "\n".join(out)
 
 
@@ -353,36 +370,17 @@ def build_var_chart(stats: list) -> str | None:
     return base64.b64encode(buf.getvalue()).decode()
 
 
-def build_var_section(stats: list, top_items: int = 5) -> str:
-    """변동지출 세부 — 도넛 그래프 + 분류별 주요 내역(상위 N) 표."""
+def build_var_section(stats: list) -> str:
+    """변동지출 구성 — 도넛 그래프(분류별 세부 내역은 아래 드롭다운에서 확인)."""
     if not any(_var_cats(s) for s in stats):
         return ""
     chart = build_var_chart(stats)
-    chart_html = (f'<div class="chart"><img alt="변동지출" src="data:image/png;base64,{chart}"></div>'
-                  if chart else "")
-    blocks = ""
-    for s in stats:
-        vc = _var_cats(s)
-        if not vc:
-            continue
-        vtot = sum(vc.values())
-        rows = ""
-        for c, cv in sorted(vc.items(), key=lambda x: -x[1]):
-            its = sorted(s["items"].get(c, {}).items(), key=lambda x: -x[1])
-            shown = its[:top_items]
-            rest = sum(v for _, v in its[top_items:])
-            detail = " · ".join(f"{d} {won(v)}" for d, v in shown)
-            if rest:
-                detail += f" · 외 {won(rest)}"
-            rows += (f'<tr><td><b>{c}</b></td><td class="num"><b>{won(cv)}</b></td>'
-                     f'<td class="num">{cv/vtot*100:.0f}%</td>'
-                     f'<td class="barcell"><span class="bar" style="width:{cv/max(vc.values())*100:.0f}%"></span></td></tr>'
-                     f'<tr class="sub"><td colspan="4">{detail}</td></tr>')
-        blocks += (f'<h3 style="font-size:14px;margin:14px 0 6px">{s["ym"]} · 변동지출 {won(vtot)}원</h3>'
-                   f'<table class="vardetail"><thead><tr><th>분류</th><th class="num">금액</th>'
-                   f'<th class="num">비중</th><th>　</th></tr></thead><tbody>{rows}</tbody></table>')
-    return (f'<section><h2>🍔 변동지출 세부 <span style="color:var(--mut);font-size:13px">'
-            f'(분류별 주요 내역 상위 {top_items})</span></h2>{chart_html}{blocks}</section>')
+    if not chart:
+        return ""
+    return (f'<section><h2>🍔 변동지출 구성</h2>'
+            f'<div class="chart"><img alt="변동지출" src="data:image/png;base64,{chart}"></div>'
+            f'<p style="font-size:12.5px;color:#9aa3ad;margin:6px 0 0">분류별 세부 내역은 아래 '
+            f'‘분류별 실가계소비’에서 항목을 눌러 확인하세요.</p></section>')
 
 
 def _oneoff_rows(s):
@@ -422,8 +420,8 @@ def build_html(stats: list, chart_b64: str | None, src_name: str, trend: list | 
     for s in stats:
         detail += f'''<section><h2><span class="tag">{s["ym"]}</span> 분류별 실가계소비
         <span style="color:var(--mut);font-size:13px">({won(s["real"])}원)</span></h2>
-        <table><thead><tr><th>분류</th><th class="num">금액</th><th class="num">비중</th><th>　</th></tr></thead>
-        <tbody>{_cat_rows(s)}</tbody></table>'''
+        <p style="font-size:12.5px;color:#9aa3ad;margin:-4px 0 10px">▸ 분류를 누르면 세부 내역이 펼쳐집니다</p>
+        {_cat_accordion(s)}'''
         # 복지포인트 별도 장부
         if s["payin"] or s["payspend"]:
             bal = s["payin"] - s["payspend"]
@@ -474,8 +472,19 @@ td.num,th.num{{text-align:right;font-variant-numeric:tabular-nums;white-space:no
 .gt.gfix{{background:#4a86e8}} .gt.gvar{{background:#e06666}} .gt.gsave{{background:#6aa84f}}
 table.trend tr.grouprow.gfix{{background:#eef4ff}} table.trend tr.grouprow.gvar{{background:#fdf2f2}} table.trend tr.grouprow.gsave{{background:#eff7ee}}
 table.trend tr.grouprow td{{border-bottom:1px solid #d4dbe3}}
-table.vardetail tr.sub td{{color:var(--mut);font-size:12px;padding:2px 8px 8px 18px;border-bottom:1px solid var(--line);line-height:1.5}}
-table.vardetail tr.sub td{{white-space:normal;word-break:break-all}}
+details.acc{{position:relative;border:1px solid var(--line);border-radius:10px;margin:7px 0;background:#fff;overflow:hidden}}
+details.acc>summary{{list-style:none;cursor:pointer;display:flex;align-items:center;gap:7px;padding:11px 14px;font-size:14px;position:relative}}
+details.acc>summary::-webkit-details-marker{{display:none}}
+details.acc>summary::before{{content:"▸";color:#9aa3ad;font-size:11px;transition:transform .15s;flex:0 0 auto}}
+details.acc[open]>summary::before{{transform:rotate(90deg)}}
+details.acc>summary:hover{{background:#fafbfc}}
+.accbar{{position:absolute;left:0;bottom:0;height:3px;background:var(--blue);opacity:.5}}
+.accname{{font-weight:500}}
+.accamt{{margin-left:auto;color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}}
+details.acc .accbody{{padding:2px 14px 12px 32px}}
+details.acc .accbody table{{font-size:13px}}
+details.acc .accbody td{{border-bottom:1px solid #f0f2f4;padding:5px 6px}}
+details.acc .accbody td:last-child{{color:var(--ink)}}
 .wfbox{{background:#f7f3ff;border:1px solid #e4d7f5;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13.5px}}
 ul.tips{{margin:6px 0 0;padding-left:18px;font-size:13.5px}} ul.tips li{{margin:6px 0}}
 .foot{{color:var(--mut);font-size:12px;text-align:center;margin-top:24px}}
