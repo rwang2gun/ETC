@@ -36,6 +36,16 @@ REGULAR_INCOME = {"월급", "아동수당"}          # '정기수입'으로 볼 
 CARDBILL_CAT   = {"카드대금"}                  # 카드대금 납부(이체) 분류
 SAVING_CATS    = {"저축/적금", "청약", "주식투자", "투자", "대출상환"}  # 자산형성(참고 표시)
 
+# 지출 그룹 구분: 고정(매달 비슷한 의무성) / 저축·투자 / 나머지는 변동
+FIXED_CATS     = {"주거/공과금", "보험", "통신비", "용돈", "교육"}  # 고정지출 분류
+GROUP_FIXED, GROUP_VAR, GROUP_SAVE = "고정", "변동", "저축·투자"
+def group_of(cat: str) -> str:
+    if cat in SAVING_CATS:
+        return GROUP_SAVE
+    if cat in FIXED_CATS:
+        return GROUP_FIXED
+    return GROUP_VAR
+
 # 페이코(복지포인트): 별도 장부로 분리
 PAYCO_ASSETS   = {"페이코(복지)카드"}          # 복지포인트로 결제되는 자산명
 def is_payco_income(r) -> bool:                 # 복지포인트 지급으로 볼 수입
@@ -117,7 +127,11 @@ def analyze(data, ym: str) -> dict:
             passthrough.append((v, m, hit[0]))
 
     real = sum(house.values())
+    groups = defaultdict(int)
+    for c, v in house.items():
+        groups[group_of(c)] += v
     return dict(ym=ym, house=dict(house), real=real, reg=reg,
+                groups=dict(groups),
                 oneoff=sum(x[2] for x in oneoff),
                 oneoff_list=sorted(oneoff, key=lambda x: -x[2]),
                 payspend=sum(pay.values()), payin=payin,
@@ -188,15 +202,99 @@ def build_chart(stats: list) -> str | None:
 def _cls(n): return "neg" if n < 0 else "pos"
 
 
+_GTAG = {GROUP_FIXED: "gfix", GROUP_VAR: "gvar", GROUP_SAVE: "gsave"}
+
+
+def _gbadge(cat: str) -> str:
+    g = group_of(cat)
+    return f'<span class="gt {_GTAG[g]}">{g}</span>'
+
+
 def _cat_rows(s):
     if not s["house"]:
         return '<tr><td colspan="4" style="color:#9aa3ad">소비 내역 없음</td></tr>'
     mx = max(s["house"].values()); real = s["real"]; out = []
     for c, v in sorted(s["house"].items(), key=lambda x: -x[1]):
-        out.append(f'<tr><td>{c}</td><td class="num">{won(v)}</td>'
+        out.append(f'<tr><td>{_gbadge(c)} {c}</td><td class="num">{won(v)}</td>'
                    f'<td class="num">{v / real * 100:.1f}%</td>'
                    f'<td class="barcell"><span class="bar" style="width:{v / mx * 100:.1f}%"></span></td></tr>')
     return "\n".join(out)
+
+
+def build_trend_chart(trend: list) -> str | None:
+    """최근 N개월 그룹별(고정/변동/저축) 추세 라인차트 → base64. 없으면 None."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        try:
+            import koreanize_matplotlib  # noqa: F401
+        except Exception:
+            pass
+        import matplotlib.pyplot as plt
+        plt.rcParams["axes.unicode_minus"] = False
+    except Exception:
+        return None
+    labels = [s["ym"][5:] + "월" for s in trend]
+    series = {
+        "고정지출": ([s["groups"].get(GROUP_FIXED, 0) / 1e4 for s in trend], "#4a86e8"),
+        "변동지출": ([s["groups"].get(GROUP_VAR, 0) / 1e4 for s in trend], "#e06666"),
+        "저축·투자": ([s["groups"].get(GROUP_SAVE, 0) / 1e4 for s in trend], "#6aa84f"),
+        "실가계소비": ([s["real"] / 1e4 for s in trend], "#999999"),
+    }
+    fig, ax = plt.subplots(figsize=(9, 4.6))
+    for name, (vals, col) in series.items():
+        ls = "--" if name == "실가계소비" else "-"
+        ax.plot(labels, vals, marker="o", label=name, color=col, linestyle=ls, linewidth=2)
+        for x, y in zip(labels, vals):
+            ax.annotate(f"{y:.0f}", (x, y), textcoords="offset points", xytext=(0, 6),
+                        ha="center", fontsize=8, color=col)
+    ax.set_ylabel("만원"); ax.set_title(f"최근 {len(trend)}개월 그룹별 지출 추세")
+    ax.legend(fontsize=9); ax.grid(axis="y", alpha=0.3)
+    import io as _io
+    buf = _io.BytesIO(); plt.tight_layout(); plt.savefig(buf, format="png", dpi=130)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def build_trend_section(trend: list) -> str:
+    """최근 N개월 항목별(분류) 지출 추세 — 그룹별로 묶은 표 + 라인차트."""
+    if len(trend) < 2:
+        return ""
+    labels = [s["ym"] for s in trend]
+    last = trend[-1]["ym"]
+    chart = build_trend_chart(trend)
+    chart_html = (f'<div class="chart"><img alt="추세" src="data:image/png;base64,{chart}"></div>'
+                  if chart else "")
+
+    # 모든 달에 등장한 분류 집합
+    allcats = set()
+    for s in trend:
+        allcats |= set(s["house"])
+
+    def row(c):
+        vals = [s["house"].get(c, 0) for s in trend]
+        cells = "".join(f'<td class="num">{won(v) if v else "·"}</td>' for v in vals)
+        return (vals[-1], f'<tr><td>{c}</td>{cells}<td class="num">{_trend_arrow(vals[0], vals[-1])}</td></tr>')
+
+    body = ""
+    for group in (GROUP_FIXED, GROUP_VAR, GROUP_SAVE):
+        rows = sorted((row(c) for c in allcats if group_of(c) == group),
+                      key=lambda x: -x[0])
+        if not rows:
+            continue
+        sub = [sum(s["house"].get(c, 0) for c in allcats if group_of(c) == group) for s in trend]
+        subcells = "".join(f'<td class="num"><b>{won(v)}</b></td>' for v in sub)
+        body += (f'<tr class="grouprow {_GTAG[group]}"><td><b>{group}</b></td>{subcells}'
+                 f'<td class="num">{_trend_arrow(sub[0], sub[-1])}</td></tr>')
+        body += "\n".join(r for _, r in rows)
+
+    th = "".join(f'<th class="num">{m[5:]}월</th>' for m in labels)
+    return f'''<section><h2>📈 최근 {len(trend)}개월 항목별 지출 추세
+      <span style="color:var(--mut);font-size:13px">({labels[0]} ~ {last})</span></h2>
+    {chart_html}
+    <table class="trend"><thead><tr><th>분류</th>{th}<th class="num">추세</th></tr></thead>
+    <tbody>{body}</tbody></table>
+    <p style="font-size:12.5px;color:#9aa3ad;margin:10px 0 0">※ 추세 화살표는 첫 달 대비 마지막 달 증감. 그룹 행(굵게)은 소계입니다.</p></section>'''
 
 
 def _oneoff_rows(s):
@@ -208,24 +306,27 @@ def _oneoff_rows(s):
 
 def _card(s):
     bal = s["reg"] - s["real"]
-    extra = ""
-    if s["saving"]:
-        extra += f'<div class="kv muted"><span>└ 그중 저축·투자·청약</span><span>{won(s["saving"])}원</span></div>'
+    g = s["groups"]
+    grp = (f'<div class="kv muted"><span>└ 고정지출</span><span>{won(g.get(GROUP_FIXED,0))}원</span></div>'
+           f'<div class="kv muted"><span>└ 변동지출</span><span>{won(g.get(GROUP_VAR,0))}원</span></div>')
+    if g.get(GROUP_SAVE):
+        grp += f'<div class="kv muted"><span>└ 저축·투자</span><span>{won(g[GROUP_SAVE])}원</span></div>'
     if s["dup"]:
-        extra += f'<div class="kv muted"><span>└ 중복 제거됨</span><span>-{won(s["dup"])}원</span></div>'
+        grp += f'<div class="kv muted"><span>└ 중복 제거됨</span><span>-{won(s["dup"])}원</span></div>'
     return f'''<div class="card"><h3>{s["ym"]}</h3>
       <div class="kv"><span>정기수입</span><b>{won(s["reg"])}원</b></div>
       <div class="kv"><span>일회성 유입</span><b>{won(s["oneoff"])}원</b></div>
       <div class="kv"><span>실가계소비</span><b class="exp">{won(s["real"])}원</b></div>
+      {grp}
       <div class="kv balance {_cls(bal)}"><span>수지(정기−실가계소비)</span><b>{won(bal)}원</b></div>
-      {extra}
     </div>'''
 
 
-def build_html(stats: list, chart_b64: str | None, src_name: str) -> str:
+def build_html(stats: list, chart_b64: str | None, src_name: str, trend: list | None = None) -> str:
     cards = "".join(_card(s) for s in stats)
     chart = (f'<div class="chart"><img alt="차트" src="data:image/png;base64,{chart_b64}"></div>'
              if chart_b64 else "")
+    trend_section = build_trend_section(trend) if trend else ""
 
     detail = ""
     for s in stats:
@@ -279,6 +380,10 @@ th,td{{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}}
 th{{color:var(--mut);font-weight:600;font-size:12.5px}}
 td.num,th.num{{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}}
 .barcell{{width:34%}} .bar{{display:inline-block;height:9px;border-radius:5px;background:var(--blue)}}
+.gt{{font-size:10.5px;font-weight:600;color:#fff;padding:1px 6px;border-radius:999px;margin-right:3px;vertical-align:middle}}
+.gt.gfix{{background:#4a86e8}} .gt.gvar{{background:#e06666}} .gt.gsave{{background:#6aa84f}}
+table.trend tr.grouprow.gfix{{background:#eef4ff}} table.trend tr.grouprow.gvar{{background:#fdf2f2}} table.trend tr.grouprow.gsave{{background:#eff7ee}}
+table.trend tr.grouprow td{{border-bottom:1px solid #d4dbe3}}
 .wfbox{{background:#f7f3ff;border:1px solid #e4d7f5;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13.5px}}
 ul.tips{{margin:6px 0 0;padding-left:18px;font-size:13.5px}} ul.tips li{{margin:6px 0}}
 .foot{{color:var(--mut);font-size:12px;text-align:center;margin-top:24px}}
@@ -291,6 +396,7 @@ ul.tips{{margin:6px 0 0;padding-left:18px;font-size:13.5px}} ul.tips li{{margin:
 → <b>실가계소비 = 현금 + 신용카드 + 충전카드 실사용</b> 기준. 통과성 거래는 상쇄하지 않고 주석으로 표시.</div>
 <div class="cards">{cards}</div>
 {chart}
+{trend_section}
 {detail}
 <section><h2>🔧 작성 개선 제안</h2><ul class="tips">
 <li><b>카드대금 결제 → ‘이체’</b>로 기록(현금→카드). 개별 결제만 한 번 잡혀 중복이 사라집니다.</li>
@@ -306,12 +412,33 @@ def months_in(data) -> list:
     return sorted({r[COL["date"]][:7] for r in data if len(r[COL["date"]]) >= 7})
 
 
+def prev_month(ym: str, k: int) -> str:
+    """ym('YYYY-MM')에서 k개월 전 'YYYY-MM'."""
+    y, m = map(int, ym.split("-"))
+    m -= k
+    while m <= 0:
+        m += 12; y -= 1
+    return f"{y:04d}-{m:02d}"
+
+
+def _trend_arrow(first: int, last: int) -> str:
+    if first == 0 and last == 0:
+        return '<span style="color:#9aa3ad">—</span>'
+    if last > first:
+        return f'<span style="color:#cc0000">▲ {((last-first)/first*100):.0f}%</span>' if first else '<span style="color:#cc0000">▲ 신규</span>'
+    if last < first:
+        return f'<span style="color:#1a8754">▼ {((first-last)/first*100):.0f}%</span>' if first else '<span style="color:#1a8754">▼</span>'
+    return '<span style="color:#9aa3ad">―</span>'
+
+
 def main():
     ap = argparse.ArgumentParser(description="위플 가계부 CSV → 보정 리포트(HTML)")
     ap.add_argument("csv", help="위플 Export CSV 경로")
     ap.add_argument("-m", "--months", nargs="+", metavar="YYYY-MM",
                     help="리포트로 만들 달(미지정 시 파일 내 모든 달)")
     ap.add_argument("-o", "--out", default="weple_report.html", help="출력 HTML 경로")
+    ap.add_argument("-t", "--trend", type=int, default=3, metavar="N",
+                    help="추세 분석 개월 수(기본 3, 0이면 끔)")
     args = ap.parse_args()
 
     _, data = load(args.csv)
@@ -322,8 +449,15 @@ def main():
         print(f"{s['ym']}  정기수입 {won(s['reg']):>12}  실가계소비 {won(s['real']):>12}  "
               f"수지 {won(s['reg'] - s['real']):>12}")
 
+    # 추세: 보고 대상 마지막 달 기준 최근 N개월
+    trend = None
+    if args.trend and args.trend >= 2:
+        latest = max(months)
+        tmonths = [prev_month(latest, k) for k in range(args.trend - 1, -1, -1)]
+        trend = [analyze(data, ym) for ym in tmonths]
+
     chart = build_chart(stats)
-    html = build_html(stats, chart, src_name=args.csv.split("/")[-1])
+    html = build_html(stats, chart, src_name=args.csv.split("/")[-1], trend=trend)
     with open(args.out, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"\n✅ 생성 완료 → {args.out}")
