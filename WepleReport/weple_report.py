@@ -298,9 +298,9 @@ def build_trend_chart(trend: list) -> str | None:
 
 
 def _trend_cells(vals: list) -> str:
-    """월별 금액 span들 + 추세 화살표 span (그리드 셀)."""
+    """월별 금액 span들 + 추세 화살표 span (전월 대비, 그리드 셀)."""
     cells = "".join(f'<span class="tnum">{won(v) if v else "·"}</span>' for v in vals)
-    return cells + f'<span class="tnum tarr">{_trend_arrow(vals[0], vals[-1])}</span>'
+    return cells + f'<span class="tnum tarr">{_trend_arrow(vals[-2], vals[-1])}</span>'
 
 
 def build_trend_section(trend: list) -> str:
@@ -360,7 +360,7 @@ def build_trend_section(trend: list) -> str:
       <span style="color:var(--mut);font-size:13px">({labels[0]} ~ {labels[-1]})</span></h2>
     {chart_html}
     <div class="trendtbl">{head}{body}</div>
-    <p style="font-size:12.5px;color:#9aa3ad;margin:10px 0 0">▸ 분류를 누르면 내역별 월 추이가 펼쳐집니다. 화살표는 첫 달 대비 마지막 달 증감, 굵은 줄은 그룹 소계.</p></section>'''
+    <p style="font-size:12.5px;color:#9aa3ad;margin:10px 0 0">▸ 분류를 누르면 내역별 월 추이가 펼쳐집니다. 화살표는 <b>전월 대비</b> 증감({labels[-2][5:]}월→{labels[-1][5:]}월), 굵은 줄은 그룹 소계.</p></section>'''
 
 
 def _var_cats(s) -> dict:
