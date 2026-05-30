@@ -62,6 +62,13 @@ DEDUP = {
     ("2026-05-03", "김용호-건설비용", 500000),  # 5/1 아버님건축비용과 동일한 돈(이중입력)
 }
 
+# 분류 재지정: (거래일, 내역) → 새 분류 (잘못 들어간 분류 바로잡기)
+RECLASSIFY = {
+    ("2026-05-01", "김수희-아버님건축비용"): "경조사",  # 어버이날 선물 겸 → 경조사
+}
+def reclassify(r) -> str:
+    return RECLASSIFY.get((r[COL["date"]], r[COL["desc"]]), r[COL["cat"]])
+
 # 통과성('대신 결제 후 송금받음') 자동 탐지: 같은 달 일회성 수입과 ±오차 내 금액의
 # 지출이 있으면 주석으로 표시(자동 상쇄는 하지 않음)
 PASSTHROUGH_TOLERANCE = 5000
@@ -108,7 +115,7 @@ def analyze(data, ym: str) -> dict:
             charge += a; continue
         if r[COL["asset"]] in PAYCO_ASSETS:
             pay[r[COL["cat"]]] += a; continue
-        cat = r[COL["cat"]]
+        cat = reclassify(r)
         house[cat] += a
         items[cat][r[COL["desc"]] or "(내역없음)"] += a
         if cat in SAVING_CATS:
