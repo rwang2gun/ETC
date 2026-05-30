@@ -37,7 +37,8 @@ CARDBILL_CAT   = {"카드대금"}                  # 카드대금 납부(이체)
 SAVING_CATS    = {"저축/적금", "청약", "주식투자", "투자", "대출상환"}  # 자산형성(참고 표시)
 
 # 지출 그룹 구분: 고정(매달 비슷한 의무성) / 저축·투자 / 나머지는 변동
-FIXED_CATS     = {"주거/공과금", "보험", "통신비", "용돈", "교육"}  # 고정지출 분류
+# 교육(학원비)은 매달 금액이 바뀌어 변동으로 둠 — 고정으로 보려면 아래에 "교육" 추가
+FIXED_CATS     = {"주거/공과금", "보험", "통신비", "용돈"}  # 고정지출 분류
 GROUP_FIXED, GROUP_VAR, GROUP_SAVE = "고정", "변동", "저축·투자"
 def group_of(cat: str) -> str:
     if cat in SAVING_CATS:
@@ -91,8 +92,9 @@ def is_dup(r) -> bool:
 def analyze(data, ym: str) -> dict:
     """한 달(ym='YYYY-MM') 보정 집계."""
     d = [r for r in data if r[COL["date"]].startswith(ym)]
-    house = defaultdict(int)   # 분류별 실가계소비
-    pay = defaultdict(int)     # 복지포인트 사용(분류별)
+    house = defaultdict(int)                          # 분류별 실가계소비
+    items = defaultdict(lambda: defaultdict(int))     # 분류 → 내역 → 금액
+    pay = defaultdict(int)                            # 복지포인트 사용(분류별)
     cardbill = charge = saving = dup = 0
     for r in d:
         if r[COL["type"]] != "지출":
@@ -106,8 +108,10 @@ def analyze(data, ym: str) -> dict:
             charge += a; continue
         if r[COL["asset"]] in PAYCO_ASSETS:
             pay[r[COL["cat"]]] += a; continue
-        house[r[COL["cat"]]] += a
-        if r[COL["cat"]] in SAVING_CATS:
+        cat = r[COL["cat"]]
+        house[cat] += a
+        items[cat][r[COL["desc"]] or "(내역없음)"] += a
+        if cat in SAVING_CATS:
             saving += a
 
     reg = sum(amt(r[COL["amount"]]) for r in d
@@ -131,7 +135,7 @@ def analyze(data, ym: str) -> dict:
     for c, v in house.items():
         groups[group_of(c)] += v
     return dict(ym=ym, house=dict(house), real=real, reg=reg,
-                groups=dict(groups),
+                groups=dict(groups), items={c: dict(v) for c, v in items.items()},
                 oneoff=sum(x[2] for x in oneoff),
                 oneoff_list=sorted(oneoff, key=lambda x: -x[2]),
                 payspend=sum(pay.values()), payin=payin,
@@ -297,6 +301,83 @@ def build_trend_section(trend: list) -> str:
     <p style="font-size:12.5px;color:#9aa3ad;margin:10px 0 0">※ 추세 화살표는 첫 달 대비 마지막 달 증감. 그룹 행(굵게)은 소계입니다.</p></section>'''
 
 
+def _var_cats(s) -> dict:
+    """변동지출 분류별 합계."""
+    return {c: v for c, v in s["house"].items() if group_of(c) == GROUP_VAR}
+
+
+def build_var_chart(stats: list) -> str | None:
+    """변동지출 구성 도넛(월별 1개) → base64. matplotlib 없으면 None."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        try:
+            import koreanize_matplotlib  # noqa: F401
+        except Exception:
+            pass
+        import matplotlib.pyplot as plt
+    except Exception:
+        return None
+    months = [s for s in stats if _var_cats(s)]
+    if not months:
+        return None
+    n = len(months)
+    fig, axes = plt.subplots(1, n, figsize=(5.4 * n, 5.2))
+    if n == 1:
+        axes = [axes]
+    palette = ["#e06666", "#f6b26b", "#ffd966", "#93c47d", "#76a5af", "#6fa8dc",
+               "#8e7cc3", "#c27ba0", "#dd7e6b", "#b6d7a8", "#a4c2f4", "#d5a6bd"]
+    for ax, s in zip(axes, months):
+        vc = _var_cats(s)
+        top = sorted(vc.items(), key=lambda x: -x[1])
+        labels = [c for c, _ in top]
+        vals = [v for _, v in top]
+        total = sum(vals)
+        wedges, _ = ax.pie(vals, startangle=90, counterclock=False,
+                           colors=[palette[i % len(palette)] for i in range(len(vals))],
+                           wedgeprops=dict(width=0.42, edgecolor="white"))
+        ax.set_title(f"{s['ym']} 변동지출\n{total/1e4:.0f}만원", fontsize=12, fontweight="bold")
+        leg = [f"{c}  {v/1e4:.0f}만 ({v/total*100:.0f}%)" for c, v in top]
+        ax.legend(wedges, leg, loc="center", fontsize=8, frameon=False,
+                  bbox_to_anchor=(0.5, -0.06), ncol=2)
+    import io as _io
+    buf = _io.BytesIO(); plt.tight_layout(); plt.savefig(buf, format="png", dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def build_var_section(stats: list, top_items: int = 5) -> str:
+    """변동지출 세부 — 도넛 그래프 + 분류별 주요 내역(상위 N) 표."""
+    if not any(_var_cats(s) for s in stats):
+        return ""
+    chart = build_var_chart(stats)
+    chart_html = (f'<div class="chart"><img alt="변동지출" src="data:image/png;base64,{chart}"></div>'
+                  if chart else "")
+    blocks = ""
+    for s in stats:
+        vc = _var_cats(s)
+        if not vc:
+            continue
+        vtot = sum(vc.values())
+        rows = ""
+        for c, cv in sorted(vc.items(), key=lambda x: -x[1]):
+            its = sorted(s["items"].get(c, {}).items(), key=lambda x: -x[1])
+            shown = its[:top_items]
+            rest = sum(v for _, v in its[top_items:])
+            detail = " · ".join(f"{d} {won(v)}" for d, v in shown)
+            if rest:
+                detail += f" · 외 {won(rest)}"
+            rows += (f'<tr><td><b>{c}</b></td><td class="num"><b>{won(cv)}</b></td>'
+                     f'<td class="num">{cv/vtot*100:.0f}%</td>'
+                     f'<td class="barcell"><span class="bar" style="width:{cv/max(vc.values())*100:.0f}%"></span></td></tr>'
+                     f'<tr class="sub"><td colspan="4">{detail}</td></tr>')
+        blocks += (f'<h3 style="font-size:14px;margin:14px 0 6px">{s["ym"]} · 변동지출 {won(vtot)}원</h3>'
+                   f'<table class="vardetail"><thead><tr><th>분류</th><th class="num">금액</th>'
+                   f'<th class="num">비중</th><th>　</th></tr></thead><tbody>{rows}</tbody></table>')
+    return (f'<section><h2>🍔 변동지출 세부 <span style="color:var(--mut);font-size:13px">'
+            f'(분류별 주요 내역 상위 {top_items})</span></h2>{chart_html}{blocks}</section>')
+
+
 def _oneoff_rows(s):
     if not s["oneoff_list"]:
         return '<tr><td colspan="4" style="color:#9aa3ad">없음</td></tr>'
@@ -327,6 +408,7 @@ def build_html(stats: list, chart_b64: str | None, src_name: str, trend: list | 
     chart = (f'<div class="chart"><img alt="차트" src="data:image/png;base64,{chart_b64}"></div>'
              if chart_b64 else "")
     trend_section = build_trend_section(trend) if trend else ""
+    var_section = build_var_section(stats)
 
     detail = ""
     for s in stats:
@@ -384,6 +466,8 @@ td.num,th.num{{text-align:right;font-variant-numeric:tabular-nums;white-space:no
 .gt.gfix{{background:#4a86e8}} .gt.gvar{{background:#e06666}} .gt.gsave{{background:#6aa84f}}
 table.trend tr.grouprow.gfix{{background:#eef4ff}} table.trend tr.grouprow.gvar{{background:#fdf2f2}} table.trend tr.grouprow.gsave{{background:#eff7ee}}
 table.trend tr.grouprow td{{border-bottom:1px solid #d4dbe3}}
+table.vardetail tr.sub td{{color:var(--mut);font-size:12px;padding:2px 8px 8px 18px;border-bottom:1px solid var(--line);line-height:1.5}}
+table.vardetail tr.sub td{{white-space:normal;word-break:break-all}}
 .wfbox{{background:#f7f3ff;border:1px solid #e4d7f5;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13.5px}}
 ul.tips{{margin:6px 0 0;padding-left:18px;font-size:13.5px}} ul.tips li{{margin:6px 0}}
 .foot{{color:var(--mut);font-size:12px;text-align:center;margin-top:24px}}
@@ -397,6 +481,7 @@ ul.tips{{margin:6px 0 0;padding-left:18px;font-size:13.5px}} ul.tips li{{margin:
 <div class="cards">{cards}</div>
 {chart}
 {trend_section}
+{var_section}
 {detail}
 <section><h2>🔧 작성 개선 제안</h2><ul class="tips">
 <li><b>카드대금 결제 → ‘이체’</b>로 기록(현금→카드). 개별 결제만 한 번 잡혀 중복이 사라집니다.</li>
