@@ -290,45 +290,70 @@ def build_trend_chart(trend: list) -> str | None:
     return base64.b64encode(buf.getvalue()).decode()
 
 
+def _trend_cells(vals: list) -> str:
+    """월별 금액 span들 + 추세 화살표 span (그리드 셀)."""
+    cells = "".join(f'<span class="tnum">{won(v) if v else "·"}</span>' for v in vals)
+    return cells + f'<span class="tnum tarr">{_trend_arrow(vals[0], vals[-1])}</span>'
+
+
 def build_trend_section(trend: list) -> str:
-    """최근 N개월 항목별(분류) 지출 추세 — 그룹별로 묶은 표 + 라인차트."""
+    """최근 N개월 항목별(분류) 지출 추세 — 라인차트 + 분류별 드롭다운(내역 추이)."""
     if len(trend) < 2:
         return ""
     labels = [s["ym"] for s in trend]
-    last = trend[-1]["ym"]
+    n = len(trend)
+    gcols = "minmax(0,1fr) " + " ".join(["1fr"] * n) + " 58px"
     chart = build_trend_chart(trend)
     chart_html = (f'<div class="chart"><img alt="추세" src="data:image/png;base64,{chart}"></div>'
                   if chart else "")
 
-    # 모든 달에 등장한 분류 집합
     allcats = set()
     for s in trend:
         allcats |= set(s["house"])
 
-    def row(c):
-        vals = [s["house"].get(c, 0) for s in trend]
-        cells = "".join(f'<td class="num">{won(v) if v else "·"}</td>' for v in vals)
-        return (vals[-1], f'<tr><td>{c}</td>{cells}<td class="num">{_trend_arrow(vals[0], vals[-1])}</td></tr>')
+    # 헤더 행
+    head = (f'<div class="trendhead" style="grid-template-columns:{gcols}">'
+            f'<span>분류</span>' + "".join(f'<span class="tnum">{m[5:]}월</span>' for m in labels)
+            + '<span class="tnum">추세</span></div>')
 
     body = ""
     for group in (GROUP_FIXED, GROUP_VAR, GROUP_SAVE):
-        rows = sorted((row(c) for c in allcats if group_of(c) == group),
-                      key=lambda x: -x[0])
-        if not rows:
+        cats = [c for c in allcats if group_of(c) == group]
+        if not cats:
             continue
-        sub = [sum(s["house"].get(c, 0) for c in allcats if group_of(c) == group) for s in trend]
-        subcells = "".join(f'<td class="num"><b>{won(v)}</b></td>' for v in sub)
-        body += (f'<tr class="grouprow {_GTAG[group]}"><td><b>{group}</b></td>{subcells}'
-                 f'<td class="num">{_trend_arrow(sub[0], sub[-1])}</td></tr>')
-        body += "\n".join(r for _, r in rows)
+        sub = [sum(s["house"].get(c, 0) for c in cats) for s in trend]
+        body += (f'<div class="trendgrp {_GTAG[group]}" style="grid-template-columns:{gcols}">'
+                 f'<span><b>{group}</b></span>{_trend_cells(sub)}</div>')
+        for c in sorted(cats, key=lambda c: -sum(s["house"].get(c, 0) for s in trend)):
+            vals = [s["house"].get(c, 0) for s in trend]
+            # 내역 × 월 매트릭스 (상위 10건)
+            its = set()
+            for s in trend:
+                its |= set(s["items"].get(c, {}))
+            tot = {it: sum(s["items"].get(c, {}).get(it, 0) for s in trend) for it in its}
+            ordered = sorted(its, key=lambda it: -tot[it])
+            irows = ""
+            for it in ordered[:10]:
+                iv = [s["items"].get(c, {}).get(it, 0) for s in trend]
+                irows += (f'<div class="tirow" style="grid-template-columns:{gcols}">'
+                          f'<span>{it}</span>'
+                          + "".join(f'<span class="tnum">{won(v) if v else "·"}</span>' for v in iv)
+                          + '<span></span></div>')
+            if len(ordered) > 10:
+                rv = [sum(s["items"].get(c, {}).get(it, 0) for it in ordered[10:]) for s in trend]
+                irows += (f'<div class="tirow" style="grid-template-columns:{gcols}">'
+                          f'<span>외 {len(ordered)-10}건</span>'
+                          + "".join(f'<span class="tnum">{won(v) if v else "·"}</span>' for v in rv)
+                          + '<span></span></div>')
+            body += (f'<details class="tacc"><summary style="grid-template-columns:{gcols}">'
+                     f'<span><span class="tarrow">▸</span> {c}</span>{_trend_cells(vals)}</summary>'
+                     f'<div class="tibody">{irows or "<div class=tirow><span>내역 없음</span></div>"}</div></details>')
 
-    th = "".join(f'<th class="num">{m[5:]}월</th>' for m in labels)
-    return f'''<section><h2>📈 최근 {len(trend)}개월 항목별 지출 추세
-      <span style="color:var(--mut);font-size:13px">({labels[0]} ~ {last})</span></h2>
+    return f'''<section><h2>📈 최근 {n}개월 항목별 지출 추세
+      <span style="color:var(--mut);font-size:13px">({labels[0]} ~ {labels[-1]})</span></h2>
     {chart_html}
-    <table class="trend"><thead><tr><th>분류</th>{th}<th class="num">추세</th></tr></thead>
-    <tbody>{body}</tbody></table>
-    <p style="font-size:12.5px;color:#9aa3ad;margin:10px 0 0">※ 추세 화살표는 첫 달 대비 마지막 달 증감. 그룹 행(굵게)은 소계입니다.</p></section>'''
+    <div class="trendtbl">{head}{body}</div>
+    <p style="font-size:12.5px;color:#9aa3ad;margin:10px 0 0">▸ 분류를 누르면 내역별 월 추이가 펼쳐집니다. 화살표는 첫 달 대비 마지막 달 증감, 굵은 줄은 그룹 소계.</p></section>'''
 
 
 def _var_cats(s) -> dict:
@@ -532,6 +557,22 @@ details.acc .accbody table{{font-size:13px}}
 details.acc .accbody td{{border-bottom:1px solid #f0f2f4;padding:5px 6px}}
 details.acc .accbody td:last-child{{color:var(--ink)}}
 .exnote{{margin-top:8px;padding:7px 10px;background:#f6f8fa;border-radius:8px;font-size:12px;color:var(--mut);line-height:1.5}}
+.trendtbl{{border:1px solid var(--line);border-radius:10px;overflow:hidden}}
+.trendhead,.trendgrp,details.tacc>summary,.tirow{{display:grid;align-items:center;gap:6px;padding:8px 12px}}
+.trendhead{{background:#f7f8fa;font-size:12px;color:var(--mut);font-weight:600}}
+.trendgrp{{background:#eef4ff;border-top:1px solid var(--line);font-size:13px}}
+.trendgrp.gvar{{background:#fdf2f2}} .trendgrp.gsave{{background:#eff7ee}}
+.tnum{{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}}
+details.tacc{{border-top:1px solid var(--line)}}
+details.tacc>summary{{list-style:none;cursor:pointer;font-size:13px}}
+details.tacc>summary::-webkit-details-marker{{display:none}}
+details.tacc>summary:hover{{background:#fafbfc}}
+.tarrow{{display:inline-block;width:12px;color:#9aa3ad;font-size:10px;transition:transform .15s}}
+details.tacc[open] .tarrow{{transform:rotate(90deg)}}
+.tibody{{background:#fbfcfd;border-top:1px dashed var(--line)}}
+.tirow{{padding:5px 12px 5px 26px;font-size:12px;color:var(--mut);border-bottom:1px solid #f0f2f4}}
+.tirow:last-child{{border-bottom:none}}
+.tirow>span:first-child{{word-break:break-all}}
 .wfbox{{background:#f7f3ff;border:1px solid #e4d7f5;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13.5px}}
 ul.tips{{margin:6px 0 0;padding-left:18px;font-size:13.5px}} ul.tips li{{margin:6px 0}}
 .foot{{color:var(--mut);font-size:12px;text-align:center;margin-top:24px}}
