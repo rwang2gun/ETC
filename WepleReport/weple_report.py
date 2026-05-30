@@ -409,6 +409,7 @@ def build_html(stats: list, chart_b64: str | None, src_name: str, trend: list | 
              if chart_b64 else "")
     trend_section = build_trend_section(trend) if trend else ""
     var_section = build_var_section(stats)
+    period = stats[0]["ym"] if len(stats) == 1 else f'{stats[0]["ym"]} ~ {stats[-1]["ym"]}'
 
     detail = ""
     for s in stats:
@@ -472,7 +473,7 @@ table.vardetail tr.sub td{{white-space:normal;word-break:break-all}}
 ul.tips{{margin:6px 0 0;padding-left:18px;font-size:13.5px}} ul.tips li{{margin:6px 0}}
 .foot{{color:var(--mut);font-size:12px;text-align:center;margin-top:24px}}
 </style></head><body><div class="wrap">
-<h1>📊 위플 가계부 리포트</h1>
+<h1>📊 위플 가계부 리포트 · {period}</h1>
 <div class="sub">원본: {src_name} · weple_report.py 자동 생성</div>
 <div class="note"><b>보정 방법</b><br>
 ① 카드대금 납부 = 이체로 제외 &nbsp; ② 페이코(복지포인트) = 별도 장부 분리<br>
@@ -528,24 +529,25 @@ def main():
 
     _, data = load(args.csv)
     months = args.months or months_in(data)
-    stats = [analyze(data, ym) for ym in months]
+    src = args.csv.split("/")[-1]
+    stem = args.out[:-5] if args.out.lower().endswith(".html") else args.out
+    single = len(months) == 1
 
-    for s in stats:
+    # 한 페이지(=HTML 1개)에 한 달만. 추세는 '그 달 기준' 최근 N개월.
+    for ym in months:
+        s = analyze(data, ym)
         print(f"{s['ym']}  정기수입 {won(s['reg']):>12}  실가계소비 {won(s['real']):>12}  "
               f"수지 {won(s['reg'] - s['real']):>12}")
-
-    # 추세: 보고 대상 마지막 달 기준 최근 N개월
-    trend = None
-    if args.trend and args.trend >= 2:
-        latest = max(months)
-        tmonths = [prev_month(latest, k) for k in range(args.trend - 1, -1, -1)]
-        trend = [analyze(data, ym) for ym in tmonths]
-
-    chart = build_chart(stats)
-    html = build_html(stats, chart, src_name=args.csv.split("/")[-1], trend=trend)
-    with open(args.out, "w", encoding="utf-8") as f:
-        f.write(html)
-    print(f"\n✅ 생성 완료 → {args.out}")
+        trend = None
+        if args.trend and args.trend >= 2:
+            tmonths = [prev_month(ym, k) for k in range(args.trend - 1, -1, -1)]
+            trend = [analyze(data, m) for m in tmonths]
+        chart = build_chart([s])
+        html = build_html([s], chart, src_name=src, trend=trend)
+        out = args.out if single else f"{stem}_{ym}.html"
+        with open(out, "w", encoding="utf-8") as f:
+            f.write(html)
+        print(f"  ✅ → {out}")
 
 
 if __name__ == "__main__":

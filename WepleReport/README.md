@@ -10,18 +10,23 @@
 # (선택) 차트용 의존성 — 없어도 표 막대로 동작합니다
 pip install matplotlib koreanize-matplotlib
 
-# CSV 안의 모든 달
-python weple_report.py weple_20260530.csv
+# 단일 월 → 지정한 이름으로 1개 파일
+python weple_report.py weple_20260530.csv -m 2026-05 -o report.html
 
-# 특정 달만 (+ 최근 3개월 추세는 자동 포함)
+# 여러 달 → 달마다 따로(report_2026-04.html, report_2026-05.html)
 python weple_report.py weple_20260530.csv -m 2026-04 2026-05 -o report.html
+
+# CSV 안의 모든 달을 각각 한 파일씩
+python weple_report.py weple_20260530.csv
 
 # 추세 개월 수 조정(기본 3) / 끄기(0)
 python weple_report.py weple_20260530.csv -m 2026-05 -t 6
 ```
 
-생성된 `report.html` 은 이미지·스타일이 모두 내장된 **단일 파일**이라 그냥
-브라우저로 열거나 카톡/메일로 공유하면 됩니다. (모바일 반응형)
+**한 페이지 = 한 달.** 여러 달을 주면 달마다 별도 HTML이 생기고, 각 리포트의
+3개월 추세는 **그 달 기준**(예: 5월 리포트 → 3·4·5월)으로 계산됩니다.
+각 파일은 이미지·스타일이 모두 내장된 **단일 파일**이라 그냥 브라우저로 열거나
+카톡/메일로 공유하면 됩니다. (모바일 반응형)
 
 ## 리포트 구성
 
