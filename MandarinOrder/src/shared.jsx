@@ -195,6 +195,54 @@ const IconCheck = (props) => (
 
 // ---------- 주문 전송 (Google Sheet via Apps Script) ----------
 // window.SHEET_ENDPOINT 가 비어 있으면 콘솔에 페이로드만 출력 (데모 모드).
+// 주문 완료 화면 "카톡 공유": 휴대폰 공유창(Web Share)으로 카톡 선택,
+// 공유창이 없는 환경(카톡 인앱 브라우저·PC 등)은 클립보드 복사로 대체.
+// 연락처·주소는 넣지 않는다 (공유 대상이 제3자일 수 있음).
+function buildShareText(s) {
+  const lines = ['🍊 제주 성전 귤 주문 내역'];
+  if (s.qty.kg10 > 0) lines.push(`· 10kg 일반 ${s.qty.kg10}박스 ${formatWon(s.qty.kg10 * PRODUCTS.kg10.price)}원`);
+  if (s.qty.kg5 > 0) lines.push(`· 5kg 선물용 ${s.qty.kg5}박스 ${formatWon(s.qty.kg5 * PRODUCTS.kg5.price)}원`);
+  lines.push(`총 ${formatWon(s.total)}원`);
+  lines.push('');
+  lines.push('입금 계좌: 농협 352-1850-9917-13 (김용호)');
+  if (s.depositor) lines.push(`입금자명: ${s.depositor}`);
+  return lines.join('\n');
+}
+
+async function shareOrder(s) {
+  const text = buildShareText(s);
+  const url = location.origin + location.pathname;
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: '제주 성전 귤 주문', text, url });
+      return 'shared';
+    } catch (e) {
+      if (e && e.name === 'AbortError') return 'cancelled';
+      // 그 외 실패는 복사로 대체
+    }
+  }
+  const full = text + '\n\n주문 페이지: ' + url;
+  try {
+    await navigator.clipboard.writeText(full);
+    return 'copied';
+  } catch (e) {
+    // clipboard API가 막힌 인앱 브라우저 대비
+    const ta = document.createElement('textarea');
+    ta.value = full; ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok ? 'copied' : 'failed';
+  }
+}
+
+async function shareOrderWithToast(s, showToast) {
+  const r = await shareOrder(s);
+  if (r === 'copied') showToast('주문 내용을 복사했어요. 카톡에 붙여넣어 주세요');
+  else if (r === 'failed') showToast('공유를 지원하지 않는 환경이에요');
+}
+
 async function submitOrderToSheet(state, variant) {
   const endpoint = window.SHEET_ENDPOINT;
   const lines = [];
@@ -255,5 +303,5 @@ async function submitOrderToSheet(state, variant) {
 Object.assign(window, {
   PRODUCTS, formatPhone, formatWon, useCountUp, useOrderState,
   AddressModal, Toast, StatusBar, PhoneFrame, Stepper, AnimatedWon,
-  IconCopy, IconSearch, IconCheck, submitOrderToSheet,
+  IconCopy, IconSearch, IconCheck, submitOrderToSheet, shareOrderWithToast,
 });
