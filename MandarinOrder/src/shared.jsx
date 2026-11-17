@@ -254,6 +254,77 @@ async function sharePageWithToast(showToast) {
   else if (r === 'failed') showToast('공유를 지원하지 않는 환경이에요');
 }
 
+// ---------- 주문내역 이미지 저장 ----------
+// html2canvas는 저장 버튼을 누를 때만 불러온다.
+let html2canvasP = null;
+function loadHtml2canvas() {
+  if (window.html2canvas) return Promise.resolve(window.html2canvas);
+  if (!html2canvasP) {
+    html2canvasP = new Promise((resolve, reject) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      sc.integrity = 'sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H';
+      sc.crossOrigin = 'anonymous';
+      sc.onload = () => resolve(window.html2canvas);
+      sc.onerror = () => { html2canvasP = null; reject(new Error('html2canvas load failed')); };
+      document.head.appendChild(sc);
+    });
+  }
+  return html2canvasP;
+}
+
+const isKakaoInApp = () => /KAKAOTALK/i.test(navigator.userAgent);
+const isMobile = () =>
+  (navigator.userAgentData && navigator.userAgentData.mobile) ||
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+  // iPadOS 사파리는 맥으로 표시되므로 터치 지원 여부로 구분
+  (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
+// 반환: { mode: 'shared' | 'cancelled' | 'downloaded' | 'press' | 'failed', url? }
+//  - press: 화면에 이미지를 띄워 길게 눌러 저장 (카톡 인앱 등 다운로드가 막힌 환경)
+async function saveOrderCard(el) {
+  let canvas;
+  try {
+    const h2c = await loadHtml2canvas();
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    canvas = await h2c(el, {
+      backgroundColor: '#FAF6EF', scale: 2, useCORS: true, logging: false,
+      windowWidth: el.scrollWidth, windowHeight: el.scrollHeight,
+    });
+  } catch (e) {
+    console.error('[MandarinOrder] 이미지 생성 실패', e);
+    return { mode: 'failed' };
+  }
+  const url = canvas.toDataURL('image/png');
+  if (isKakaoInApp()) return { mode: 'press', url };
+
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const name = `귤주문_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.png`;
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+  const file = blob && new File([blob], name, { type: 'image/png' });
+
+  // 폰(아이폰 사파리 등): 공유창 → "이미지 저장"
+  // PC 크롬·엣지도 파일 공유를 지원하지만 윈도우 공유창이 떠서 어색하므로 PC는 바로 다운로드
+  if (file && isMobile() && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: '귤 주문내역' });
+      return { mode: 'shared' };
+    } catch (e) {
+      if (e && e.name === 'AbortError') return { mode: 'cancelled' };
+    }
+  }
+  // 안드로이드 크롬·PC: 바로 다운로드
+  try {
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    return { mode: 'downloaded' };
+  } catch (e) {
+    return { mode: 'press', url };
+  }
+}
+
 async function submitOrderToSheet(state, variant) {
   const endpoint = window.SHEET_ENDPOINT;
   const lines = [];
@@ -316,5 +387,5 @@ async function submitOrderToSheet(state, variant) {
 Object.assign(window, {
   PRODUCTS, formatPhone, formatWon, useCountUp, useOrderState,
   AddressModal, Toast, StatusBar, PhoneFrame, Stepper, AnimatedWon,
-  IconCopy, IconSearch, IconCheck, submitOrderToSheet, shareOrderWithToast, sharePageWithToast,
+  IconCopy, IconSearch, IconCheck, submitOrderToSheet, shareOrderWithToast, sharePageWithToast, saveOrderCard,
 });

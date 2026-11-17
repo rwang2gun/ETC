@@ -1091,7 +1091,7 @@
   }
   .success-screen .summary .row:last-child { border: 0; }
   .success-screen .summary .row .k { color: #6B6355; }
-  .success-screen .summary .row .v { color: var(--ink); font-weight: 600; text-align: right; }
+  .success-screen .summary .row .v { color: var(--ink); font-weight: 600; text-align: right; word-break: keep-all; }
   .success-screen .summary .row.total .v {
     color: var(--orange-deep); font-weight: 900;
     font-size: calc(17px * var(--fs-scale));
@@ -1105,6 +1105,25 @@
     background: white; font-family: inherit; font-weight: 700;
     font-size: calc(16px * var(--fs-scale)); cursor: pointer;
   }
+
+  /* 저장 이미지 영역: 캡처 시 위아래 여백 확보 */
+  .order-card { padding: 8px 4px 4px; background: var(--cream); }
+
+  /* 길게 눌러 저장 화면 */
+  .press-save {
+    position: absolute; inset: 0; z-index: 300;
+    background: rgba(28,26,21,.96);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px 20px; gap: 14px; overflow-y: auto;
+    animation: fadeIn .18s ease;
+  }
+  .press-save p { color: white; font-size: 15px; margin: 0; text-align: center; }
+  .press-save img {
+    width: 100%; max-width: 360px; height: auto;
+    border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.35);
+    -webkit-touch-callout: default; user-select: auto;
+  }
+  .press-save .secondary-btn { flex: none; width: 100%; max-width: 360px; height: 52px; }
 
   .v-b .success-screen { background: white; }
   .v-b .success-screen .check-circle { background: #0A0A0A; border-radius: 0; }
