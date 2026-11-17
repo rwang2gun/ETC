@@ -1,6 +1,15 @@
 /* Variant A — 따뜻한 자연주의 표준 */
 const { useState: useStateA, useEffect: useEffectA, useRef: useRefA } = React;
 
+// 송금 앱(토스 등)이 클립보드에서 은행·계좌를 알아보도록 은행명과 금액을 같이 복사
+function copyAccountA(total, showToast) {
+  const text = total > 0
+    ? `농협 352-1850-9917-13 ${formatWon(total)}원`
+    : '농협 352-1850-9917-13';
+  if (navigator.clipboard) navigator.clipboard.writeText(text).catch(()=>{});
+  showToast(total > 0 ? '계좌번호와 금액을 복사했어요' : '계좌번호가 복사됐어요');
+}
+
 function VariantA() {
   const s = window.useOrderState();
   const [addrOpen, setAddrOpen] = useStateA(false);
@@ -17,10 +26,7 @@ function VariantA() {
     toastT.current = setTimeout(() => setToastShow(false), 1800);
   };
 
-  const onCopyAccount = () => {
-    if (navigator.clipboard) navigator.clipboard.writeText('352-1850-9917-13').catch(()=>{});
-    showToast('계좌번호가 복사됐어요');
-  };
+  const onCopyAccount = () => copyAccountA(s.total, showToast);
 
   const onPickAddr = (a) => {
     if (addrTarget === 'orderer') {
@@ -65,8 +71,12 @@ function VariantA() {
           <h1>2026 제주 성전 <span className="orange">귤</span>이<br/>나왔어요</h1>
           <p className="sub">
             <b>판매 시작</b> 2026.12.15부터<br/>
-            <b>포장</b> 주문 당일 수확 · 2일 내 발송
+            신선한 귤을 바로 받아보세요.
           </p>
+          <button className="share-page-btn" onClick={() => window.sharePageWithToast(showToast)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+            주문 페이지 공유하기
+          </button>
           <div className="hero-photo">
             <span className="cap">제주 성전 농장 · 귤밭</span>
           </div>
@@ -75,18 +85,18 @@ function VariantA() {
         {/* 상품 선택 */}
         <section className="section-a">
           <div className="num"><span className="num-dot">1</span>귤 상자 선택</div>
-          <h2>어떤 귤을 보내드릴까요?</h2>
+          <h2>상품을 선택해 주세요</h2>
           <p className="section-desc">카드를 눌러 수량을 정해주세요. 여러 박스를 같이 담을 수 있어요.</p>
 
           <div className={`prod ${s.qty.kg5 > 0 ? 'has' : ''}`} onClick={() => s.qty.kg5 === 0 && s.bump('kg5', 1)}>
             <div className="prod-top">
-              <div className="prod-img b5" />
+              <div className="prod-img b5"><img src="img/5kg.jpg" alt="5kg 선물용 귤 상자" /></div>
               <div className="prod-meta">
                 <div className="prod-title">
                   <strong>5kg 선물용</strong>
                   <span className="chip">선물 추천</span>
                 </div>
-                <p className="prod-desc">30~35개 · 균일 사이즈<br/>튼튼한 스티로폼 박스</p>
+                <p className="prod-desc">30~35개 · 균일 사이즈<br/>안전한 스티로폼 포장</p>
                 <div className="prod-price">25,000<span className="won">원</span></div>
               </div>
             </div>
@@ -95,13 +105,13 @@ function VariantA() {
 
           <div className={`prod ${s.qty.kg10 > 0 ? 'has' : ''}`} onClick={() => s.qty.kg10 === 0 && s.bump('kg10', 1)}>
             <div className="prod-top">
-              <div className="prod-img" />
+              <div className="prod-img"><img src="img/10kg.jpg" alt="10kg 일반 귤 상자" /></div>
               <div className="prod-meta">
                 <div className="prod-title">
                   <strong>10kg 일반</strong>
-                  <span className="chip" style={{ background: 'rgba(245,146,62,.14)', color: 'var(--orange-deep)' }}>가성비</span>
+                  <span className="chip" style={{ background: 'rgba(245,146,62,.14)', color: 'var(--orange-deep)' }}>실속형</span>
                 </div>
-                <p className="prod-desc">150~190개 · 과실 작지만<br/>단맛 진한 실속형</p>
+                <p className="prod-desc">150~190개<br/>박스 가득 달콤함이 가득</p>
                 <div className="prod-price">33,000<span className="won">원</span></div>
               </div>
             </div>
@@ -133,34 +143,16 @@ function VariantA() {
         {/* 주문자 정보 */}
         <section className="section-a">
           <div className="num"><span className="num-dot">2</span>주문자 정보</div>
-          <h2>누구의 주문인가요?</h2>
+          <h2>누가 주문하시나요?</h2>
           <div style={{ marginBottom: 14 }}>
             <label className="field-label">이름 <span className="req">*</span></label>
             <input className="input" placeholder="홍길동" value={s.orderer.name}
               onChange={e => s.setOrderer(o => ({ ...o, name: e.target.value }))} />
           </div>
-          <div style={{ marginBottom: 14 }}>
+          <div>
             <label className="field-label">휴대폰 번호 <span className="req">*</span></label>
             <input className="input" type="tel" inputMode="numeric" placeholder="010-0000-0000" value={s.orderer.phone}
               onChange={e => s.setOrderer(o => ({ ...o, phone: formatPhone(e.target.value) }))} />
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <label className="field-label">우편번호 <span className="req">*</span></label>
-            <div className="row-2">
-              <button className="addr-btn" onClick={() => openAddr('orderer')}>
-                <IconSearch /> 검색
-              </button>
-              <input className="input" placeholder="00000" readOnly value={s.orderer.zip} />
-            </div>
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <label className="field-label">기본 주소</label>
-            <input className="input" placeholder="주소 검색 후 자동 입력돼요" readOnly value={s.orderer.addr} />
-          </div>
-          <div>
-            <label className="field-label">상세 주소 <span className="req">*</span></label>
-            <input className="input" placeholder="동/호수 등" value={s.orderer.detail}
-              onChange={e => s.setOrderer(o => ({ ...o, detail: e.target.value }))} />
           </div>
         </section>
 
@@ -171,43 +163,45 @@ function VariantA() {
           <div className="toggle-row">
             <div>
               <div className="label">본인이 받아요</div>
-              <div className="sub">주문자 주소로 그대로 보내드려요</div>
+              <div className="sub">주문자 이름·연락처로 받아요.</div>
             </div>
             <div className={`switch ${s.selfReceive ? 'on' : ''}`} onClick={() => s.setSelfReceive(v => !v)} role="switch" aria-checked={s.selfReceive} />
           </div>
 
-          {!s.selfReceive && (
-            <div style={{ display: 'grid', gap: 14, animation: 'fadeIn .2s ease' }}>
-              <div>
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div>
+              <label className="field-label">우편번호 <span className="req">*</span></label>
+              <div className="row-2">
+                <button className="addr-btn" onClick={() => openAddr('receiver')}>
+                  <IconSearch /> 검색
+                </button>
+                <input className="input" placeholder="00000" readOnly value={s.receiver.zip} />
+              </div>
+            </div>
+            <div>
+              <label className="field-label">기본 주소</label>
+              <input className="input" placeholder="주소 검색 후 자동 입력돼요" readOnly value={s.receiver.addr} />
+            </div>
+            <div>
+              <label className="field-label">상세 주소 <span className="req">*</span></label>
+              <input className="input" placeholder="동/호수 등" value={s.receiver.detail}
+                onChange={e => s.setReceiver(r => ({ ...r, detail: e.target.value }))} />
+            </div>
+            {!s.selfReceive && (
+              <div style={{ animation: 'fadeIn .2s ease' }}>
                 <label className="field-label">받는 분 이름 <span className="req">*</span></label>
                 <input className="input" placeholder="김제주" value={s.receiver.name}
                   onChange={e => s.setReceiver(r => ({ ...r, name: e.target.value }))} />
               </div>
-              <div>
-                <label className="field-label">우편번호 <span className="req">*</span></label>
-                <div className="row-2">
-                  <button className="addr-btn" onClick={() => openAddr('receiver')}>
-                    <IconSearch /> 검색
-                  </button>
-                  <input className="input" placeholder="00000" readOnly value={s.receiver.zip} />
-                </div>
-              </div>
-              <div>
-                <label className="field-label">기본 주소</label>
-                <input className="input" placeholder="주소 검색 후 자동 입력돼요" readOnly value={s.receiver.addr} />
-              </div>
-              <div>
-                <label className="field-label">상세 주소 <span className="req">*</span></label>
-                <input className="input" placeholder="동/호수 등" value={s.receiver.detail}
-                  onChange={e => s.setReceiver(r => ({ ...r, detail: e.target.value }))} />
-              </div>
-              <div>
+            )}
+            {!s.selfReceive && (
+              <div style={{ animation: 'fadeIn .2s ease' }}>
                 <label className="field-label">받는 분 휴대폰 <span className="req">*</span></label>
                 <input className="input" type="tel" inputMode="numeric" placeholder="010-0000-0000" value={s.receiver.phone}
                   onChange={e => s.setReceiver(r => ({ ...r, phone: formatPhone(e.target.value) }))} />
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </section>
 
         {/* 입금 안내 */}
@@ -227,8 +221,8 @@ function VariantA() {
             <input className="input" placeholder="입금 시 표시될 이름" value={s.depositor}
               onChange={e => s.setDepositor(e.target.value)} />
             <p style={{ fontSize: 12, color: '#8B8578', margin: '8px 0 0', lineHeight: 1.6 }}>
-              · 주문자명과 다를 경우 확인이 어려워요<br/>
-              · 입금 확인 후 2일 내 발송됩니다
+              · 주문자명과 다를 경우 확인이 어려워요.<br/>
+              · 입금 확인 후 발송됩니다.
             </p>
           </div>
         </section>
@@ -240,8 +234,11 @@ function VariantA() {
               {s.agreed && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
             </div>
             <div className="txt">
-              <b>개인정보 수집 · 이용에 동의합니다</b><br/>
-              주문자·받는 분의 이름, 연락처, 주소를 배송 · 환불 · 문의 응대와 다음 해 출하 안내에 사용하며, 동의 후 3년이 지나면 파기해요.
+              <b>개인정보 수집 · 이용에 동의합니다.</b>
+              <ul className="consent-list">
+                <li>배송, 환불, 기타 문의 응대와 다음 출하 안내를 위해 주문자와 받는 분의 이름, 연락처, 주소를 수집합니다.</li>
+                <li>동의 후 3년이 지나면 파기합니다.</li>
+              </ul>
             </div>
           </div>
         </section>
@@ -268,17 +265,14 @@ function VariantA() {
 }
 
 function SuccessScreenA({ state: s, onNewOrder, showToast }) {
-  const onCopy = () => {
-    if (navigator.clipboard) navigator.clipboard.writeText('352-1850-9917-13').catch(()=>{});
-    showToast('계좌번호가 복사됐어요');
-  };
+  const onCopy = () => copyAccountA(s.total, showToast);
   return (
     <div className="success-screen show">
       <window.StatusBar />
       <div className="success-inner">
         <div className="check-circle"><IconCheck /></div>
         <h2>주문이 접수됐어요</h2>
-        <p className="sub">입금 확인 후 2일 내<br/>주문하신 주소로 발송해드립니다</p>
+        <p className="sub">입금 확인 후<br/>주문하신 주소로 발송해드립니다.</p>
 
         <div className="summary">
           <h4>주문 내역</h4>
@@ -291,13 +285,16 @@ function SuccessScreenA({ state: s, onNewOrder, showToast }) {
           <h4>받는 곳</h4>
           <div className="row"><span className="k">받는 분</span><span className="v">{s.selfReceive ? s.orderer.name : s.receiver.name}</span></div>
           <div className="row"><span className="k">연락처</span><span className="v">{s.selfReceive ? s.orderer.phone : s.receiver.phone}</span></div>
-          <div className="row"><span className="k">주소</span><span className="v" style={{ maxWidth: '60%' }}>{s.selfReceive ? `[${s.orderer.zip}] ${s.orderer.addr} ${s.orderer.detail}` : `[${s.receiver.zip}] ${s.receiver.addr} ${s.receiver.detail}`}</span></div>
+          <div className="row"><span className="k">주소</span><span className="v" style={{ maxWidth: '60%' }}>{`[${s.receiver.zip}] ${s.receiver.addr} ${s.receiver.detail}`}</span></div>
         </div>
 
         <div className="summary" style={{ background: 'rgba(245,146,62,.08)', borderColor: 'rgba(245,146,62,.3)' }}>
           <h4 style={{ color: 'var(--orange-deep)' }}>입금 계좌</h4>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>농협 352-1850-9917-13</div>
-          <div style={{ fontSize: 13, color: '#6B6355', marginBottom: 10 }}>예금주 김용호 · 입금자명 <b>{s.depositor}</b></div>
+          <div style={{ fontSize: 13, color: '#6B6355', marginBottom: 4 }}>예금주 김용호 · 입금자명 <b>{s.depositor}</b></div>
+          <div style={{ fontSize: 13, color: '#6B6355', marginBottom: 10 }}>
+            문의 <a href="tel:010-7315-0756" style={{ color: 'var(--ink)', fontWeight: 700, textDecoration: 'none' }}>010-7315-0756</a>
+          </div>
           <button className="cta" style={{ height: 52 }} onClick={onCopy}>
             <IconCopy style={{ width: 18, height: 18, stroke: 'white' }} /> 계좌번호 복사하기
           </button>

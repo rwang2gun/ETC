@@ -96,7 +96,7 @@ function VariantC() {
           <div className={`prod-c ${s.qty.kg5 > 0 ? 'has' : ''}`} onClick={() => s.qty.kg5 === 0 && s.bump('kg5', 1)}>
             <span className="handtag orange">선물용 추천</span>
             <div className="ptop">
-              <div className="pimg b5" />
+              <div className="pimg b5"><img src="img/5kg.jpg" alt="5kg 선물용 귤 상자" /></div>
               <div style={{ flex: 1 }}>
                 <h3 className="pname">5kg 선물 상자</h3>
                 <p className="pdesc">30~35과 · 균일 사이즈<br/>스티로폼 박스에 단단히 담아요</p>
@@ -109,7 +109,7 @@ function VariantC() {
           <div className={`prod-c ${s.qty.kg10 > 0 ? 'has' : ''}`} onClick={() => s.qty.kg10 === 0 && s.bump('kg10', 1)}>
             <span className="handtag">우리집 귤</span>
             <div className="ptop">
-              <div className="pimg" />
+              <div className="pimg"><img src="img/10kg.jpg" alt="10kg 일반 귤 상자" /></div>
               <div style={{ flex: 1 }}>
                 <h3 className="pname">10kg 일반 상자</h3>
                 <p className="pdesc">150~190과 · 작지만<br/>단맛이 진해 실속 있어요</p>

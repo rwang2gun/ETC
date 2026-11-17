@@ -67,12 +67,11 @@ function useOrderState() {
   const isValid = totalCount > 0
     && orderer.name.trim().length >= 2
     && orderer.phone.replace(/\D/g, '').length >= 10
-    && orderer.zip.length > 0
-    && orderer.detail.trim().length > 0
+    // 주소는 받는 곳에서만 받는다 (본인 수령이어도 receiver.zip/addr/detail 사용)
+    && receiver.zip.length > 0
+    && receiver.detail.trim().length > 0
     && (selfReceive || (
       receiver.name.trim().length >= 2 &&
-      receiver.zip.length > 0 &&
-      receiver.detail.trim().length > 0 &&
       receiver.phone.replace(/\D/g, '').length >= 10
     ))
     && depositor.trim().length >= 2
@@ -206,29 +205,30 @@ function buildShareText(s) {
   lines.push('');
   lines.push('입금 계좌: 농협 352-1850-9917-13 (김용호)');
   if (s.depositor) lines.push(`입금자명: ${s.depositor}`);
+  lines.push('문의: 010-7315-0756');
   return lines.join('\n');
 }
 
-async function shareOrder(s) {
-  const text = buildShareText(s);
-  const url = location.origin + location.pathname;
+const PAGE_URL = () => location.origin + location.pathname;
+
+// 공유창(Web Share) → 실패/미지원이면 copyText를 클립보드에 복사
+async function shareOrCopy(data, copyText) {
   if (navigator.share) {
     try {
-      await navigator.share({ title: '제주 성전 귤 주문', text, url });
+      await navigator.share(data);
       return 'shared';
     } catch (e) {
       if (e && e.name === 'AbortError') return 'cancelled';
       // 그 외 실패는 복사로 대체
     }
   }
-  const full = text + '\n\n주문 페이지: ' + url;
   try {
-    await navigator.clipboard.writeText(full);
+    await navigator.clipboard.writeText(copyText);
     return 'copied';
   } catch (e) {
     // clipboard API가 막힌 인앱 브라우저 대비
     const ta = document.createElement('textarea');
-    ta.value = full; ta.setAttribute('readonly', '');
+    ta.value = copyText; ta.setAttribute('readonly', '');
     ta.style.position = 'fixed'; ta.style.opacity = '0';
     document.body.appendChild(ta); ta.select();
     const ok = document.execCommand('copy');
@@ -238,8 +238,19 @@ async function shareOrder(s) {
 }
 
 async function shareOrderWithToast(s, showToast) {
-  const r = await shareOrder(s);
+  const text = buildShareText(s);
+  const url = PAGE_URL();
+  const r = await shareOrCopy({ title: '제주 성전 귤 주문', text, url }, text + '\n\n주문 페이지: ' + url);
   if (r === 'copied') showToast('주문 내용을 복사했어요. 카톡에 붙여넣어 주세요');
+  else if (r === 'failed') showToast('공유를 지원하지 않는 환경이에요');
+}
+
+// 첫 화면 "주문 페이지 공유": 주문 링크만 공유
+async function sharePageWithToast(showToast) {
+  const url = PAGE_URL();
+  const text = '🍊 제주 성전 귤 주문 페이지예요.';
+  const r = await shareOrCopy({ title: '제주 성전 귤 주문', text, url }, text + '\n' + url);
+  if (r === 'copied') showToast('주문 링크를 복사했어요. 카톡에 붙여넣어 주세요');
   else if (r === 'failed') showToast('공유를 지원하지 않는 환경이에요');
 }
 
@@ -269,15 +280,17 @@ async function submitOrderToSheet(state, variant) {
     total_amount: state.total,
     orderer_name: state.orderer.name,
     orderer_phone: state.orderer.phone,
-    orderer_zip: state.orderer.zip,
-    orderer_addr: state.orderer.addr,
-    orderer_detail: state.orderer.detail,
+    // 주문자 주소는 더 이상 받지 않는다. 배포된 Code.gs가 본인 수령일 때
+    // orderer_addr를 배송지로 쓰므로, 그 경우에만 받는 곳 주소를 같이 넣어 호환 유지.
+    orderer_zip: state.selfReceive ? state.receiver.zip : '',
+    orderer_addr: state.selfReceive ? state.receiver.addr : '',
+    orderer_detail: state.selfReceive ? state.receiver.detail : '',
     self_receive: state.selfReceive,
     receiver_name: state.selfReceive ? state.orderer.name : state.receiver.name,
     receiver_phone: state.selfReceive ? state.orderer.phone : state.receiver.phone,
-    receiver_zip: state.selfReceive ? state.orderer.zip : state.receiver.zip,
-    receiver_addr: state.selfReceive ? state.orderer.addr : state.receiver.addr,
-    receiver_detail: state.selfReceive ? state.orderer.detail : state.receiver.detail,
+    receiver_zip: state.receiver.zip,
+    receiver_addr: state.receiver.addr,
+    receiver_detail: state.receiver.detail,
     depositor: state.depositor,
   };
   if (!endpoint) {
@@ -303,5 +316,5 @@ async function submitOrderToSheet(state, variant) {
 Object.assign(window, {
   PRODUCTS, formatPhone, formatWon, useCountUp, useOrderState,
   AddressModal, Toast, StatusBar, PhoneFrame, Stepper, AnimatedWon,
-  IconCopy, IconSearch, IconCheck, submitOrderToSheet, shareOrderWithToast,
+  IconCopy, IconSearch, IconCheck, submitOrderToSheet, shareOrderWithToast, sharePageWithToast,
 });
