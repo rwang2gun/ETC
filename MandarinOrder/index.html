@@ -53,13 +53,17 @@
   .app-shell {
     width: 100%;
     max-width: 480px;
-    min-height: 100vh;
+    /* 고정 높이여야 안쪽 .screen-body가 스크롤되고 하단 CTA가 화면에 붙는다 */
+    height: 100vh;
+    height: 100dvh;
     background: var(--cream);
     position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
   }
+  /* variant 래퍼(.v-a 등)가 내용 높이만큼 늘어나지 않도록 */
+  .app-shell > * { min-height: 0; }
   @media (min-width: 768px) {
     body { background: #E6DFCE; }
     .stage {
@@ -67,8 +71,8 @@
       align-items: flex-start;
     }
     .app-shell {
-      min-height: calc(100vh - 80px);
-      max-height: calc(100vh - 80px);
+      height: calc(100vh - 80px);
+      height: calc(100dvh - 80px);
       border-radius: 24px;
       box-shadow:
         0 24px 60px rgba(28, 26, 21, 0.12),
@@ -78,7 +82,8 @@
 
   /* Screen body gets its own scroll + bottom CTA overlay */
   .screen-body {
-    flex: 1; overflow-y: auto; overflow-x: hidden;
+    flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     position: relative;
   }

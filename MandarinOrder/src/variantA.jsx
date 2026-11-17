@@ -62,9 +62,9 @@ function VariantA() {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66C8 15 14 13 17 13h2V8h-2z"/></svg>
             제주 성전 농장
           </span>
-          <h1>2025 제주 성전 <span className="orange">귤</span>이<br/>나왔어요</h1>
+          <h1>2026 제주 성전 <span className="orange">귤</span>이<br/>나왔어요</h1>
           <p className="sub">
-            <b>판매 기간</b> 2025.11.20 ~ 12.30<br/>
+            <b>판매 시작</b> 2026.12.15부터<br/>
             <b>포장</b> 주문 당일 수확 · 2일 내 발송
           </p>
           <div className="hero-photo">
@@ -241,7 +241,7 @@ function VariantA() {
             </div>
             <div className="txt">
               <b>개인정보 수집 · 이용에 동의합니다</b><br/>
-              주문 접수 · 배송 · 환불 처리 목적으로 사용되며, 3개월 후 파기돼요.
+              주문자·받는 분의 이름, 연락처, 주소를 배송 · 환불 · 문의 응대와 다음 해 출하 안내에 사용하며, 동의 후 3년이 지나면 파기해요.
             </div>
           </div>
         </section>

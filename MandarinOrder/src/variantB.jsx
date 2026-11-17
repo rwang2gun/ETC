@@ -55,11 +55,11 @@ function VariantB() {
       <div className="screen-body">
         {/* HERO */}
         <section className="hero-b">
-          <div className="year">2025 · JEJU · SEONGJEON</div>
+          <div className="year">2026 · JEJU · SEONGJEON</div>
           <h1>올해의 귤,<br/>수확의 순간.</h1>
           <div className="rule" />
           <div className="meta">
-            <div><span className="k">SEASON</span><span className="v">2025.11.20 — 12.30</span></div>
+            <div><span className="k">SEASON</span><span className="v">2026.12.15 —</span></div>
             <div><span className="k">HARVEST</span><span className="v">주문 당일 · 2일 내 발송</span></div>
             <div><span className="k">ORIGIN</span><span className="v">제주 성전 농장 직배송</span></div>
           </div>
@@ -219,7 +219,7 @@ function VariantB() {
             </div>
             <div className="txt" style={{ fontSize: 'calc(13px * var(--fs-scale))', lineHeight: 1.6 }}>
               <b style={{ letterSpacing: '0.04em' }}>PRIVACY CONSENT</b><br/>
-              주문 · 배송 · 환불 목적 수집 · 3개월 후 파기
+              배송 · 환불 · 문의 · 다음 해 출하 안내 목적 수집 · 3년 후 파기
             </div>
           </div>
         </section>
