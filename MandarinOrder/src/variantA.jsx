@@ -18,6 +18,11 @@ function VariantA() {
   const [toastShow, setToastShow] = useStateA(false);
   const [success, setSuccess] = useStateA(false);
   const [submitting, setSubmitting] = useStateA(false);
+  // 입력칸에 포커스가 있으면(=가상 키보드가 떠 있으면) 하단 버튼을 숨겨 칸을 가리지 않게
+  const [typing, setTyping] = useStateA(false);
+  const isTextField = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') && !el.readOnly;
+  const onFieldFocus = (e) => { if (isTextField(e.target)) setTyping(true); };
+  const onFieldBlur = (e) => { if (isTextField(e.target)) setTyping(false); };
   const toastT = useRefA();
 
   const showToast = (m) => {
@@ -61,7 +66,7 @@ function VariantA() {
     <div className="v-a" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <window.StatusBar />
 
-      <div className="screen-body">
+      <div className="screen-body" onFocus={onFieldFocus} onBlur={onFieldBlur}>
         {/* HERO */}
         <section className="hero-a">
           <span className="leaf-chip">
@@ -245,10 +250,10 @@ function VariantA() {
       </div>
 
       {/* 하단 고정 CTA */}
-      <div className="cta-dock">
+      <div className="cta-dock" style={typing ? { display: 'none' } : undefined}>
         <button className="cta" disabled={!s.isValid || submitting} onClick={onSubmit}>
           {submitting ? '주문을 보내는 중…'
-            : s.totalCount === 0 ? '귤 상자를 선택해 주세요'
+            : s.totalCount === 0 ? '상품을 선택해 주세요'
             : !s.isValid ? '정보를 모두 입력해 주세요'
             : `${formatWon(s.total)}원 · 주문 완료하기`}
         </button>
@@ -266,10 +271,26 @@ function VariantA() {
 
 function SuccessScreenA({ state: s, onNewOrder, showToast }) {
   const onCopy = () => copyAccountA(s.total, showToast);
+  const cardRef = useRefA();
+  const [saving, setSaving] = useStateA(false);
+  const [pressSaveUrl, setPressSaveUrl] = useStateA('');  // 길게 눌러 저장 화면용 이미지
+
+  const onSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    const r = await window.saveOrderCard(cardRef.current);
+    setSaving(false);
+    if (r.mode === 'downloaded') showToast('주문내역 이미지를 저장했어요');
+    else if (r.mode === 'press') setPressSaveUrl(r.url);
+    else if (r.mode === 'failed') showToast('이미지를 만들지 못했어요. 화면을 캡처해 주세요');
+  };
+
   return (
     <div className="success-screen show">
       <window.StatusBar />
       <div className="success-inner">
+       {/* 이 영역이 그대로 저장 이미지가 됨 (data-html2canvas-ignore 요소는 제외) */}
+       <div ref={cardRef} className="order-card">
         <div className="check-circle"><IconCheck /></div>
         <h2>주문이 접수됐어요</h2>
         <p className="sub">입금 확인 후<br/>주문하신 주소로 발송해드립니다.</p>
@@ -295,16 +316,25 @@ function SuccessScreenA({ state: s, onNewOrder, showToast }) {
           <div style={{ fontSize: 13, color: '#6B6355', marginBottom: 10 }}>
             문의 <a href="tel:010-7315-0756" style={{ color: 'var(--ink)', fontWeight: 700, textDecoration: 'none' }}>010-7315-0756</a>
           </div>
-          <button className="cta" style={{ height: 52 }} onClick={onCopy}>
+          <button className="cta" style={{ height: 52 }} onClick={onCopy} data-html2canvas-ignore="true">
             <IconCopy style={{ width: 18, height: 18, stroke: 'white' }} /> 계좌번호 복사하기
           </button>
         </div>
+       </div>
 
         <div className="cta-row">
           <button className="secondary-btn" onClick={onNewOrder}>새 주문</button>
-          <button className="cta" onClick={() => window.shareOrderWithToast(s, showToast)}>카톡 공유</button>
+          <button className="cta" onClick={onSave} disabled={saving}>{saving ? '만드는 중…' : '주문내역 저장하기'}</button>
         </div>
       </div>
+
+      {pressSaveUrl && (
+        <div className="press-save" onClick={() => setPressSaveUrl('')}>
+          <p>이미지를 <b>길게 눌러</b> 저장해 주세요.</p>
+          <img src={pressSaveUrl} alt="주문내역" onClick={e => e.stopPropagation()} />
+          <button className="secondary-btn" onClick={() => setPressSaveUrl('')}>닫기</button>
+        </div>
+      )}
     </div>
   );
 }
