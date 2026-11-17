@@ -244,7 +244,7 @@ function VariantC() {
             </div>
             <div className="txt">
               <b>개인정보 수집 · 이용에 동의해요</b><br/>
-              주문 · 배송 · 환불 목적으로만 쓰이고, 3개월 뒤 파기돼요.
+              배송 · 환불 · 문의와 다음 해 출하 안내에 쓰이고, 3년 뒤 파기돼요.
             </div>
           </div>
         </section>
