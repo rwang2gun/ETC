@@ -305,7 +305,7 @@ function SuccessScreenA({ state: s, onNewOrder, showToast }) {
 
         <div className="cta-row">
           <button className="secondary-btn" onClick={onNewOrder}>새 주문</button>
-          <button className="cta" onClick={() => showToast('카톡으로 공유했어요')}>카톡 공유</button>
+          <button className="cta" onClick={() => window.shareOrderWithToast(s, showToast)}>카톡 공유</button>
         </div>
       </div>
     </div>
