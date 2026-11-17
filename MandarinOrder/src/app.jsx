@@ -1,4 +1,4 @@
-/* App wiring: 단일 변형 렌더 + 노안 모드. ACTIVE 만 바꾸면 스타일 교체. */
+/* App wiring: 단일 변형 렌더 + 큰 글씨 모드. ACTIVE 만 바꾸면 스타일 교체. */
 const { useState: useStateApp, useEffect: useEffectApp } = React;
 
 const ACTIVE = 'A'; // 'A' | 'B' | 'C'

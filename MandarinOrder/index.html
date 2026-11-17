@@ -27,7 +27,7 @@
     --shadow-md: 0 2px 6px rgba(28,26,21,.05), 0 10px 24px rgba(28,26,21,.06);
     --shadow-lg: 0 8px 24px rgba(28,26,21,.08), 0 20px 60px rgba(28,26,21,.08);
 
-    /* 노안 모드 스케일 */
+    /* 큰 글씨 모드 스케일 */
     --fs-scale: 1;
   }
 
@@ -180,6 +180,17 @@
   }
   .v-a .hero-a .sub b { color: var(--leaf-deep); font-weight: 600; }
 
+  .share-page-btn {
+    margin-top: 14px;
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 40px; padding: 0 16px;
+    border: 1.5px solid var(--leaf); border-radius: 999px;
+    background: white; color: var(--leaf-deep);
+    font-family: inherit; font-size: calc(14px * var(--fs-scale)); font-weight: 600;
+    cursor: pointer;
+  }
+  .share-page-btn:active { transform: translateY(1px); }
+
   .v-a .hero-photo {
     margin: 16px 0 0;
     aspect-ratio: 16 / 10;
@@ -264,6 +275,11 @@
       radial-gradient(circle at 30% 30%, #E07B2C 0 10px, transparent 11px),
       radial-gradient(circle at 75% 70%, #F5923E 0 11px, transparent 12px),
       linear-gradient(135deg, #FFF8EB 0%, #F5ECD5 100%);
+  }
+  /* 상품 실사진 — 사진이 안 뜨면 아래 그라데이션이 그대로 보임 */
+  .v-a .prod-img, .v-c .prod-c .pimg { overflow: hidden; }
+  .v-a .prod-img img, .v-c .prod-c .pimg img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
   }
   .v-a .prod-meta { flex: 1; min-width: 0; }
   .v-a .prod-title {
@@ -441,6 +457,10 @@
     font-size: calc(13px * var(--fs-scale)); color: #4A453A; line-height: 1.55;
   }
   .consent .txt b { color: var(--ink); font-weight: 600; }
+  /* 항목별 한 줄 + 줄이 넘어가면 글머리 뒤에 맞춰 정렬 */
+  .consent-list { list-style: none; margin: 6px 0 0; padding: 0; word-break: keep-all; }
+  .consent-list li { position: relative; padding-left: 12px; }
+  .consent-list li::before { content: '·'; position: absolute; left: 2px; }
 
   /* Address modal (shared) */
   .modal-scrim {
@@ -1120,7 +1140,7 @@
 
 <button class="tweaks-toggle" id="tweaksToggle">
   <span class="dot" id="tweaksDot"></span>
-  <span>노안 모드</span>
+  <span>큰 글씨</span>
 </button>
 
 <!-- Daum 우편번호 서비스 (무료, 키 불필요) -->
