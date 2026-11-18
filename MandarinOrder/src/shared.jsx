@@ -316,7 +316,7 @@ async function shareFile(file) {
   }
 }
 
-// 저장하기. 반환 'downloaded' | 'shared' | 'cancelled' | 'press'
+// 저장. 반환 'downloaded' | 'shared' | 'cancelled' | 'press'
 //  - 카톡 인앱: 다운로드가 막혀 있어 길게 눌러 저장 안내(press)
 //  - 아이폰: 사진 앱 저장은 공유창의 "이미지 저장"으로만 가능
 //  - 그 외(안드로이드·PC): 파일 다운로드
@@ -334,13 +334,6 @@ async function saveCardImage(img) {
   } catch (e) {
     return 'press';
   }
-}
-
-// 공유하기. 반환 'shared' | 'cancelled' | 'unsupported'
-async function shareCardImage(img) {
-  if (!canShareFile(img.file)) return 'unsupported';
-  const r = await shareFile(img.file);
-  return r === 'failed' ? 'unsupported' : r;
 }
 
 async function submitOrderToSheet(state, variant) {
@@ -405,5 +398,5 @@ async function submitOrderToSheet(state, variant) {
 Object.assign(window, {
   PRODUCTS, formatPhone, formatWon, useCountUp, useOrderState,
   AddressModal, Toast, StatusBar, PhoneFrame, Stepper, AnimatedWon,
-  IconCopy, IconSearch, IconCheck, submitOrderToSheet, shareOrderWithToast, sharePageWithToast, makeOrderCardImage, saveCardImage, shareCardImage, isKakaoInApp,
+  IconCopy, IconSearch, IconCheck, submitOrderToSheet, shareOrderWithToast, sharePageWithToast, makeOrderCardImage, saveCardImage,
 });

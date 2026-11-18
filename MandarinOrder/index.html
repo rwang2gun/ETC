@@ -3,6 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
+<script>
+  // 카톡 인앱 브라우저로 열리면 폰 기본 브라우저(크롬·사파리)로 다시 연다.
+  // 인앱에서는 이미지 저장(다운로드)이 막혀 있어서. 외부 브라우저 UA엔 KAKAOTALK이 없어 반복되지 않음.
+  // 넘어가지 못하면 그대로 이 페이지를 쓰면 된다 (길게 눌러 저장 안내가 대신함).
+  (function () {
+    if (!/KAKAOTALK/i.test(navigator.userAgent)) return;
+    location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
+  })();
+</script>
 <title>제주 성전 귤 — 모바일 주문</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1148,14 +1157,12 @@
   }
   .press-save p { color: white; font-size: 15px; margin: 0; text-align: center; }
   .press-save img {
-    /* 저장·공유 버튼이 한 화면에 같이 보이도록 높이 제한 */
+    /* 안내 문구·닫기 버튼이 한 화면에 같이 보이도록 높이 제한 */
     width: auto; max-width: 100%; height: auto;
-    max-height: calc(100% - 170px); object-fit: contain;
+    max-height: calc(100% - 120px); object-fit: contain;
     border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.35);
     -webkit-touch-callout: default; user-select: auto;
   }
-  .press-save-actions { display: flex; gap: 8px; width: 100%; max-width: 360px; }
-  .press-save-actions > * { flex: 1; height: 52px; }
   .press-save-close {
     background: transparent; border: 0; color: rgba(255,255,255,.8);
     font-family: inherit; font-size: 15px; padding: 8px 16px; cursor: pointer;

@@ -303,8 +303,8 @@ function VariantA() {
             <p>아래 주소로 보내드려도 될지 확인해 주세요.</p>
             <div className="confirm-addr">[{s.receiver.zip}] {s.receiver.addr}</div>
             <div className="confirm-actions">
-              <button className="secondary-btn" onClick={onGoEditDetail}>수정하러 가기</button>
               <button className="cta" onClick={onConfirmSubmit}>주문 완료하기</button>
+              <button className="secondary-btn" onClick={onGoEditDetail}>수정하러 가기</button>
             </div>
           </div>
         </div>
@@ -320,29 +320,23 @@ function VariantA() {
 function SuccessScreenA({ state: s, onNewOrder, showToast }) {
   const onCopy = () => copyAccountA(s.total, showToast);
   const cardRef = useRefA();
-  const [making, setMaking] = useStateA(false);
-  const [cardImg, setCardImg] = useStateA(null);  // 미리보기 이미지 { url, file, name }
-  const inKakao = window.isKakaoInApp();
+  const [saving, setSaving] = useStateA(false);
+  const [pressSaveUrl, setPressSaveUrl] = useStateA('');  // 다운로드가 막힌 환경: 길게 눌러 저장
 
-  // 1) 이미지 만들어 미리보기 → 2) 저장하기 / 공유하기 선택
-  const onMakeImage = async () => {
-    if (making) return;
-    setMaking(true);
+  // 이미지를 만들어 바로 저장 (아이폰은 공유창의 "이미지 저장")
+  const onSave = async () => {
+    if (saving) return;
+    setSaving(true);
     const img = await window.makeOrderCardImage(cardRef.current);
-    setMaking(false);
-    if (img) setCardImg(img);
-    else showToast('이미지를 만들지 못했어요. 화면을 캡처해 주세요');
-  };
-
-  const onSaveImg = async () => {
-    const r = await window.saveCardImage(cardImg);
+    if (!img) {
+      setSaving(false);
+      showToast('이미지를 만들지 못했어요. 화면을 캡처해 주세요');
+      return;
+    }
+    const r = await window.saveCardImage(img);
+    setSaving(false);
     if (r === 'downloaded') showToast('주문내역 이미지를 저장했어요');
-    else if (r === 'press') showToast('이미지를 길게 눌러 저장해 주세요');
-  };
-
-  const onShareImg = async () => {
-    const r = await window.shareCardImage(cardImg);
-    if (r === 'unsupported') showToast('여기서는 공유가 안 돼요. 이미지를 저장한 뒤 보내주세요');
+    else if (r === 'press') setPressSaveUrl(img.url);
   };
 
   return (
@@ -384,19 +378,15 @@ function SuccessScreenA({ state: s, onNewOrder, showToast }) {
 
         <div className="cta-row">
           <button className="secondary-btn" onClick={onNewOrder}>새 주문</button>
-          <button className="cta" onClick={onMakeImage} disabled={making}>{making ? '만드는 중…' : '주문내역 이미지'}</button>
+          <button className="cta" onClick={onSave} disabled={saving}>{saving ? '저장 중…' : '주문내역 저장하기'}</button>
         </div>
       </div>
 
-      {cardImg && (
-        <div className="press-save" onClick={() => setCardImg(null)}>
-          <p>{inKakao ? <>이미지를 <b>길게 눌러</b> 저장할 수 있어요.</> : '주문내역 이미지를 저장하거나 공유하세요.'}</p>
-          <img src={cardImg.url} alt="주문내역" onClick={e => e.stopPropagation()} />
-          <div className="press-save-actions" onClick={e => e.stopPropagation()}>
-            <button className="secondary-btn" onClick={onSaveImg}>저장하기</button>
-            <button className="cta" onClick={onShareImg}>공유하기</button>
-          </div>
-          <button className="press-save-close" onClick={() => setCardImg(null)}>닫기</button>
+      {pressSaveUrl && (
+        <div className="press-save" onClick={() => setPressSaveUrl('')}>
+          <p>이미지를 <b>길게 눌러</b> 저장해 주세요.</p>
+          <img src={pressSaveUrl} alt="주문내역" onClick={e => e.stopPropagation()} />
+          <button className="press-save-close" onClick={() => setPressSaveUrl('')}>닫기</button>
         </div>
       )}
     </div>
