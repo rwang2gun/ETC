@@ -86,7 +86,7 @@ function useOrderState() {
   };
 }
 
-// ---------- Address search modal (Daum Postcode embed) ----------
+// ---------- Address search modal (Kakao Postcode embed) ----------
 // onPick 콜백은 기존 인터페이스 유지: { zip, main } — variant 코드 변경 불필요
 function AddressModal({ open, onClose, onPick, theme = 'a' }) {
   const containerRef = useRef();
@@ -96,7 +96,7 @@ function AddressModal({ open, onClose, onPick, theme = 'a' }) {
     const el = containerRef.current;
     el.replaceChildren();
 
-    if (typeof daum === 'undefined' || !daum.Postcode) {
+    if (typeof kakao === 'undefined' || !kakao.Postcode) {
       const msg = document.createElement('div');
       msg.style.cssText = 'padding:30px;text-align:center;color:#8B8578;font-size:13px';
       msg.textContent = '주소 검색을 불러오는 중입니다…';
@@ -104,7 +104,7 @@ function AddressModal({ open, onClose, onPick, theme = 'a' }) {
       return;
     }
 
-    new daum.Postcode({
+    new kakao.Postcode({
       oncomplete: (data) => {
         onPick({
           zip: data.zonecode,
