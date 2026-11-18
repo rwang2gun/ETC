@@ -43,8 +43,36 @@ function VariantA() {
   };
   const openAddr = (target) => { setAddrTarget(target); setAddrOpen(true); };
 
-  const onSubmit = async () => {
+  // 상세 주소가 비어 있으면 바로 보내지 않고 확인 팝업
+  const [confirmNoDetail, setConfirmNoDetail] = useStateA(false);
+  const detailRef = useRefA();
+
+  const onSubmit = () => {
     if (!s.isValid || submitting) return;
+    if (!s.receiver.detail.trim()) { setConfirmNoDetail(true); return; }
+    doSubmit();
+  };
+
+  const onGoEditDetail = () => {
+    setConfirmNoDetail(false);
+    const el = detailRef.current;
+    if (!el) return;
+    // 부드러운 스크롤은 키보드가 올라올 때 어긋날 수 있어 즉시 이동 후 포커스
+    const body = el.closest('.screen-body');
+    if (body) {
+      const prev = body.style.scrollBehavior;
+      body.style.scrollBehavior = 'auto';
+      const top = el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop;
+      body.scrollTop = Math.max(0, top - body.clientHeight / 3);
+      body.style.scrollBehavior = prev;
+    }
+    el.focus({ preventScroll: true });
+  };
+
+  const onConfirmSubmit = () => { setConfirmNoDetail(false); doSubmit(); };
+
+  const doSubmit = async () => {
+    if (submitting) return;
     setSubmitting(true);
     const r = await window.submitOrderToSheet(s, 'A');
     setSubmitting(false);
@@ -78,10 +106,16 @@ function VariantA() {
             <b>판매 시작</b> 2026.12.15부터<br/>
             신선한 귤을 바로 받아보세요.
           </p>
-          <button className="share-page-btn" onClick={() => window.sharePageWithToast(showToast)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
-            주문 페이지 공유하기
-          </button>
+          <div className="hero-actions">
+            <button className="share-page-btn" onClick={() => window.sharePageWithToast(showToast)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+              주문 페이지 공유하기
+            </button>
+            <a className="share-page-btn" href="tel:010-7315-0756">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>
+              문의 010-7315-0756
+            </a>
+          </div>
           <div className="hero-photo">
             <span className="cap">제주 성전 농장 · 귤밭</span>
           </div>
@@ -91,7 +125,7 @@ function VariantA() {
         <section className="section-a">
           <div className="num"><span className="num-dot">1</span>귤 상자 선택</div>
           <h2>상품을 선택해 주세요</h2>
-          <p className="section-desc">카드를 눌러 수량을 정해주세요. 여러 박스를 같이 담을 수 있어요.</p>
+          <p className="section-desc">버튼을 눌러 수량을 정해주세요. 여러 박스를 같이 담을 수 있어요.</p>
 
           <div className={`prod ${s.qty.kg5 > 0 ? 'has' : ''}`} onClick={() => s.qty.kg5 === 0 && s.bump('kg5', 1)}>
             <div className="prod-top">
@@ -117,7 +151,7 @@ function VariantA() {
                   <span className="chip" style={{ background: 'rgba(245,146,62,.14)', color: 'var(--orange-deep)' }}>실속형</span>
                 </div>
                 <p className="prod-desc">150~190개<br/>박스 가득 달콤함이 가득</p>
-                <div className="prod-price">33,000<span className="won">원</span></div>
+                <div className="prod-price">{formatWon(PRODUCTS.kg10.price)}<span className="won">원</span></div>
               </div>
             </div>
             <Stepper count={s.qty.kg10} onDec={() => s.bump('kg10', -1)} onInc={() => s.bump('kg10', 1)} />
@@ -188,8 +222,8 @@ function VariantA() {
               <input className="input" placeholder="주소 검색 후 자동 입력돼요" readOnly value={s.receiver.addr} />
             </div>
             <div>
-              <label className="field-label">상세 주소 <span className="req">*</span></label>
-              <input className="input" placeholder="동/호수 등" value={s.receiver.detail}
+              <label className="field-label">상세 주소</label>
+              <input ref={detailRef} className="input" placeholder="동/호수 등" value={s.receiver.detail}
                 onChange={e => s.setReceiver(r => ({ ...r, detail: e.target.value }))} />
             </div>
             {!s.selfReceive && (
@@ -262,6 +296,20 @@ function VariantA() {
       <window.AddressModal open={addrOpen} onClose={() => setAddrOpen(false)} onPick={onPickAddr} />
       <Toast message={toastMsg} show={toastShow} />
 
+      {confirmNoDetail && (
+        <div className="confirm-scrim" role="dialog" aria-modal="true">
+          <div className="confirm-box">
+            <h3>상세 주소가 비어 있어요</h3>
+            <p>아래 주소로 보내드려도 될지 확인해 주세요.</p>
+            <div className="confirm-addr">[{s.receiver.zip}] {s.receiver.addr}</div>
+            <div className="confirm-actions">
+              <button className="secondary-btn" onClick={onGoEditDetail}>수정하러 가기</button>
+              <button className="cta" onClick={onConfirmSubmit}>주문 완료하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {success && (
         <SuccessScreenA state={s} onNewOrder={onNewOrder} showToast={showToast} />
       )}
@@ -272,17 +320,29 @@ function VariantA() {
 function SuccessScreenA({ state: s, onNewOrder, showToast }) {
   const onCopy = () => copyAccountA(s.total, showToast);
   const cardRef = useRefA();
-  const [saving, setSaving] = useStateA(false);
-  const [pressSaveUrl, setPressSaveUrl] = useStateA('');  // 길게 눌러 저장 화면용 이미지
+  const [making, setMaking] = useStateA(false);
+  const [cardImg, setCardImg] = useStateA(null);  // 미리보기 이미지 { url, file, name }
+  const inKakao = window.isKakaoInApp();
 
-  const onSave = async () => {
-    if (saving) return;
-    setSaving(true);
-    const r = await window.saveOrderCard(cardRef.current);
-    setSaving(false);
-    if (r.mode === 'downloaded') showToast('주문내역 이미지를 저장했어요');
-    else if (r.mode === 'press') setPressSaveUrl(r.url);
-    else if (r.mode === 'failed') showToast('이미지를 만들지 못했어요. 화면을 캡처해 주세요');
+  // 1) 이미지 만들어 미리보기 → 2) 저장하기 / 공유하기 선택
+  const onMakeImage = async () => {
+    if (making) return;
+    setMaking(true);
+    const img = await window.makeOrderCardImage(cardRef.current);
+    setMaking(false);
+    if (img) setCardImg(img);
+    else showToast('이미지를 만들지 못했어요. 화면을 캡처해 주세요');
+  };
+
+  const onSaveImg = async () => {
+    const r = await window.saveCardImage(cardImg);
+    if (r === 'downloaded') showToast('주문내역 이미지를 저장했어요');
+    else if (r === 'press') showToast('이미지를 길게 눌러 저장해 주세요');
+  };
+
+  const onShareImg = async () => {
+    const r = await window.shareCardImage(cardImg);
+    if (r === 'unsupported') showToast('여기서는 공유가 안 돼요. 이미지를 저장한 뒤 보내주세요');
   };
 
   return (
@@ -298,7 +358,7 @@ function SuccessScreenA({ state: s, onNewOrder, showToast }) {
         <div className="summary">
           <h4>주문 내역</h4>
           {s.qty.kg5 > 0 && <div className="row"><span className="k">5kg 선물용</span><span className="v">{s.qty.kg5}박스 · {formatWon(s.qty.kg5 * 25000)}원</span></div>}
-          {s.qty.kg10 > 0 && <div className="row"><span className="k">10kg 일반</span><span className="v">{s.qty.kg10}박스 · {formatWon(s.qty.kg10 * 33000)}원</span></div>}
+          {s.qty.kg10 > 0 && <div className="row"><span className="k">10kg 일반</span><span className="v">{s.qty.kg10}박스 · {formatWon(s.qty.kg10 * PRODUCTS.kg10.price)}원</span></div>}
           <div className="row total"><span className="k">총 결제금액</span><span className="v">{formatWon(s.total)}원</span></div>
         </div>
 
@@ -324,15 +384,19 @@ function SuccessScreenA({ state: s, onNewOrder, showToast }) {
 
         <div className="cta-row">
           <button className="secondary-btn" onClick={onNewOrder}>새 주문</button>
-          <button className="cta" onClick={onSave} disabled={saving}>{saving ? '만드는 중…' : '주문내역 저장하기'}</button>
+          <button className="cta" onClick={onMakeImage} disabled={making}>{making ? '만드는 중…' : '주문내역 이미지'}</button>
         </div>
       </div>
 
-      {pressSaveUrl && (
-        <div className="press-save" onClick={() => setPressSaveUrl('')}>
-          <p>이미지를 <b>길게 눌러</b> 저장해 주세요.</p>
-          <img src={pressSaveUrl} alt="주문내역" onClick={e => e.stopPropagation()} />
-          <button className="secondary-btn" onClick={() => setPressSaveUrl('')}>닫기</button>
+      {cardImg && (
+        <div className="press-save" onClick={() => setCardImg(null)}>
+          <p>{inKakao ? <>이미지를 <b>길게 눌러</b> 저장할 수 있어요.</> : '주문내역 이미지를 저장하거나 공유하세요.'}</p>
+          <img src={cardImg.url} alt="주문내역" onClick={e => e.stopPropagation()} />
+          <div className="press-save-actions" onClick={e => e.stopPropagation()}>
+            <button className="secondary-btn" onClick={onSaveImg}>저장하기</button>
+            <button className="cta" onClick={onShareImg}>공유하기</button>
+          </div>
+          <button className="press-save-close" onClick={() => setCardImg(null)}>닫기</button>
         </div>
       )}
     </div>

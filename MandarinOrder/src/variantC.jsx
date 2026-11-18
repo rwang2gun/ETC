@@ -113,7 +113,7 @@ function VariantC() {
               <div style={{ flex: 1 }}>
                 <h3 className="pname">10kg 일반 상자</h3>
                 <p className="pdesc">150~190과 · 작지만<br/>단맛이 진해 실속 있어요</p>
-                <div className="pprice">33,000원</div>
+                <div className="pprice">35,000원</div>
               </div>
             </div>
             <Stepper count={s.qty.kg10} onDec={() => s.bump('kg10', -1)} onInc={() => s.bump('kg10', 1)} />
@@ -284,7 +284,7 @@ function SuccessScreenC({ state: s, onNewOrder, showToast }) {
         <div className="summary">
           <h4 className="serif" style={{ color: 'var(--leaf-deep)', fontSize: 14 }}>오늘의 주문</h4>
           {s.qty.kg5 > 0 && <div className="row"><span className="k">5kg 선물 상자</span><span className="v">{s.qty.kg5}박스 · {formatWon(s.qty.kg5*25000)}원</span></div>}
-          {s.qty.kg10 > 0 && <div className="row"><span className="k">10kg 일반 상자</span><span className="v">{s.qty.kg10}박스 · {formatWon(s.qty.kg10*33000)}원</span></div>}
+          {s.qty.kg10 > 0 && <div className="row"><span className="k">10kg 일반 상자</span><span className="v">{s.qty.kg10}박스 · {formatWon(s.qty.kg10*35000)}원</span></div>}
           <div className="row total"><span className="k">모두 합해</span><span className="v">{formatWon(s.total)}원</span></div>
         </div>
 
