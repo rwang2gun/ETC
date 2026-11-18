@@ -115,7 +115,7 @@
   .toast-wrap {
     position: absolute; left: 0; right: 0; bottom: 120px;
     display: flex; justify-content: center; pointer-events: none;
-    z-index: 100;
+    z-index: 400; /* 완료 화면(200)·이미지 미리보기(300) 위에서도 보이게 */
   }
   .toast {
     background: rgba(28,26,21,.92); color: white;
@@ -180,10 +180,13 @@
   }
   .v-a .hero-a .sub b { color: var(--leaf-deep); font-weight: 600; }
 
+  /* 두 버튼을 한 줄에 반씩. 큰 글씨 모드 등으로 넘치면 줄바꿈 */
+  .hero-actions { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .hero-actions .share-page-btn { flex: 1 1 0; justify-content: center; padding: 0 8px; font-size: calc(13px * var(--fs-scale)); }
   .share-page-btn {
-    margin-top: 14px;
-    display: inline-flex; align-items: center; gap: 6px;
-    height: 40px; padding: 0 16px;
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 40px; padding: 0 14px;
+    text-decoration: none; white-space: nowrap;
     border: 1.5px solid var(--leaf); border-radius: 999px;
     background: white; color: var(--leaf-deep);
     font-family: inherit; font-size: calc(14px * var(--fs-scale)); font-weight: 600;
@@ -1106,6 +1109,32 @@
     font-size: calc(16px * var(--fs-scale)); cursor: pointer;
   }
 
+  /* 상세 주소 빈칸 확인 팝업 */
+  .confirm-scrim {
+    position: absolute; inset: 0; z-index: 150;
+    background: rgba(28,26,21,.55);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; animation: fadeIn .18s ease;
+  }
+  .confirm-box {
+    width: 100%; max-width: 360px; background: white;
+    border-radius: 20px; padding: 24px 20px 20px;
+    box-shadow: var(--shadow-lg);
+  }
+  .confirm-box h3 { margin: 0 0 8px; font-size: calc(18px * var(--fs-scale)); font-weight: 800; color: var(--ink); }
+  .confirm-box p { margin: 0 0 12px; font-size: calc(14px * var(--fs-scale)); color: #6B6355; line-height: 1.55; }
+  .confirm-addr {
+    background: var(--cream); border: 1.5px solid var(--line); border-radius: 12px;
+    padding: 12px 14px; font-size: calc(14px * var(--fs-scale)); font-weight: 600;
+    color: var(--ink); line-height: 1.5; word-break: keep-all; margin-bottom: 16px;
+  }
+  .confirm-actions { display: flex; gap: 8px; }
+  .confirm-actions > * { flex: 1; height: 52px; }
+  .confirm-actions .secondary-btn {
+    border: 1.5px solid var(--ink); border-radius: 16px; background: white;
+    font-family: inherit; font-weight: 700; font-size: calc(16px * var(--fs-scale)); cursor: pointer;
+  }
+
   /* 저장 이미지 영역: 캡처 시 위아래 여백 확보 */
   .order-card { padding: 8px 4px 4px; background: var(--cream); }
 
@@ -1119,11 +1148,18 @@
   }
   .press-save p { color: white; font-size: 15px; margin: 0; text-align: center; }
   .press-save img {
-    width: 100%; max-width: 360px; height: auto;
+    /* 저장·공유 버튼이 한 화면에 같이 보이도록 높이 제한 */
+    width: auto; max-width: 100%; height: auto;
+    max-height: calc(100% - 170px); object-fit: contain;
     border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.35);
     -webkit-touch-callout: default; user-select: auto;
   }
-  .press-save .secondary-btn { flex: none; width: 100%; max-width: 360px; height: 52px; }
+  .press-save-actions { display: flex; gap: 8px; width: 100%; max-width: 360px; }
+  .press-save-actions > * { flex: 1; height: 52px; }
+  .press-save-close {
+    background: transparent; border: 0; color: rgba(255,255,255,.8);
+    font-family: inherit; font-size: 15px; padding: 8px 16px; cursor: pointer;
+  }
 
   .v-b .success-screen { background: white; }
   .v-b .success-screen .check-circle { background: #0A0A0A; border-radius: 0; }

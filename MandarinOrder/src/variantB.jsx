@@ -95,7 +95,7 @@ function VariantB() {
                 <strong>10kg 일반 박스</strong>
               </div>
               <div className="brow-right">
-                <div className="price">33,000</div>
+                <div className="price">35,000</div>
                 <div className="unit">KRW / BOX</div>
               </div>
             </div>
@@ -259,7 +259,7 @@ function SuccessScreenB({ state: s, onNewOrder, showToast }) {
         <div className="summary">
           <h4 style={{ letterSpacing: '0.2em', textTransform: 'uppercase' }}>ITEMS</h4>
           {s.qty.kg5 > 0 && <div className="row"><span className="k">5kg Gift × {s.qty.kg5}</span><span className="v">{formatWon(s.qty.kg5*25000)}원</span></div>}
-          {s.qty.kg10 > 0 && <div className="row"><span className="k">10kg Daily × {s.qty.kg10}</span><span className="v">{formatWon(s.qty.kg10*33000)}원</span></div>}
+          {s.qty.kg10 > 0 && <div className="row"><span className="k">10kg Daily × {s.qty.kg10}</span><span className="v">{formatWon(s.qty.kg10*35000)}원</span></div>}
           <div className="row total"><span className="k">TOTAL</span><span className="v">{formatWon(s.total)}원</span></div>
         </div>
 

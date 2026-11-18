@@ -3,7 +3,7 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 // ---------- utilities ----------
 const PRODUCTS = {
-  kg10: { id: 'kg10', name: '10kg 일반', shortName: '10kg', price: 33000,
+  kg10: { id: 'kg10', name: '10kg 일반', shortName: '10kg', price: 35000,
     desc: '일반용 · 150~190개 · 과실 작고 단맛 진해요', size: '10kg · 150~190과' },
   kg5:  { id: 'kg5',  name: '5kg 선물용', shortName: '5kg',  price: 25000,
     desc: '선물용 · 30~35개 · 균일 사이즈 · 스티로폼 박스', size: '5kg · 30~35과' },
@@ -68,8 +68,8 @@ function useOrderState() {
     && orderer.name.trim().length >= 2
     && orderer.phone.replace(/\D/g, '').length >= 10
     // 주소는 받는 곳에서만 받는다 (본인 수령이어도 receiver.zip/addr/detail 사용)
+    // 상세 주소는 비어도 되지만, 비어 있으면 제출 시 확인 팝업을 띄운다 (variantA)
     && receiver.zip.length > 0
-    && receiver.detail.trim().length > 0
     && (selfReceive || (
       receiver.name.trim().length >= 2 &&
       receiver.phone.replace(/\D/g, '').length >= 10
@@ -274,15 +274,14 @@ function loadHtml2canvas() {
 }
 
 const isKakaoInApp = () => /KAKAOTALK/i.test(navigator.userAgent);
-const isMobile = () =>
-  (navigator.userAgentData && navigator.userAgentData.mobile) ||
-  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-  // iPadOS 사파리는 맥으로 표시되므로 터치 지원 여부로 구분
+
+// iPadOS 사파리는 맥으로 표시되므로 터치 지원 여부로 구분
+const isIOS = () =>
+  /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
   (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
-// 반환: { mode: 'shared' | 'cancelled' | 'downloaded' | 'press' | 'failed', url? }
-//  - press: 화면에 이미지를 띄워 길게 눌러 저장 (카톡 인앱 등 다운로드가 막힌 환경)
-async function saveOrderCard(el) {
+// 주문 카드 → 이미지. 반환 { url, file } 또는 null
+async function makeOrderCardImage(el) {
   let canvas;
   try {
     const h2c = await loadHtml2canvas();
@@ -293,36 +292,55 @@ async function saveOrderCard(el) {
     });
   } catch (e) {
     console.error('[MandarinOrder] 이미지 생성 실패', e);
-    return { mode: 'failed' };
+    return null;
   }
-  const url = canvas.toDataURL('image/png');
-  if (isKakaoInApp()) return { mode: 'press', url };
-
   const d = new Date();
   const pad = n => String(n).padStart(2, '0');
   const name = `귤주문_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.png`;
   const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-  const file = blob && new File([blob], name, { type: 'image/png' });
+  return {
+    url: canvas.toDataURL('image/png'),
+    file: blob ? new File([blob], name, { type: 'image/png' }) : null,
+    name,
+  };
+}
 
-  // 폰(아이폰 사파리 등): 공유창 → "이미지 저장"
-  // PC 크롬·엣지도 파일 공유를 지원하지만 윈도우 공유창이 떠서 어색하므로 PC는 바로 다운로드
-  if (file && isMobile() && navigator.canShare && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: '귤 주문내역' });
-      return { mode: 'shared' };
-    } catch (e) {
-      if (e && e.name === 'AbortError') return { mode: 'cancelled' };
-    }
+const canShareFile = (file) => !!(file && navigator.canShare && navigator.canShare({ files: [file] }));
+
+async function shareFile(file) {
+  try {
+    await navigator.share({ files: [file], title: '귤 주문내역' });
+    return 'shared';
+  } catch (e) {
+    return (e && e.name === 'AbortError') ? 'cancelled' : 'failed';
   }
-  // 안드로이드 크롬·PC: 바로 다운로드
+}
+
+// 저장하기. 반환 'downloaded' | 'shared' | 'cancelled' | 'press'
+//  - 카톡 인앱: 다운로드가 막혀 있어 길게 눌러 저장 안내(press)
+//  - 아이폰: 사진 앱 저장은 공유창의 "이미지 저장"으로만 가능
+//  - 그 외(안드로이드·PC): 파일 다운로드
+async function saveCardImage(img) {
+  if (isKakaoInApp()) return 'press';
+  if (isIOS() && canShareFile(img.file)) {
+    const r = await shareFile(img.file);
+    return r === 'failed' ? 'press' : r;
+  }
   try {
     const a = document.createElement('a');
-    a.href = url; a.download = name;
+    a.href = img.url; a.download = img.name;
     document.body.appendChild(a); a.click(); a.remove();
-    return { mode: 'downloaded' };
+    return 'downloaded';
   } catch (e) {
-    return { mode: 'press', url };
+    return 'press';
   }
+}
+
+// 공유하기. 반환 'shared' | 'cancelled' | 'unsupported'
+async function shareCardImage(img) {
+  if (!canShareFile(img.file)) return 'unsupported';
+  const r = await shareFile(img.file);
+  return r === 'failed' ? 'unsupported' : r;
 }
 
 async function submitOrderToSheet(state, variant) {
@@ -387,5 +405,5 @@ async function submitOrderToSheet(state, variant) {
 Object.assign(window, {
   PRODUCTS, formatPhone, formatWon, useCountUp, useOrderState,
   AddressModal, Toast, StatusBar, PhoneFrame, Stepper, AnimatedWon,
-  IconCopy, IconSearch, IconCheck, submitOrderToSheet, shareOrderWithToast, sharePageWithToast, saveOrderCard,
+  IconCopy, IconSearch, IconCheck, submitOrderToSheet, shareOrderWithToast, sharePageWithToast, makeOrderCardImage, saveCardImage, shareCardImage, isKakaoInApp,
 });
