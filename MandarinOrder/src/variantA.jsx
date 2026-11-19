@@ -1,6 +1,16 @@
 /* Variant A — 따뜻한 자연주의 표준 */
 const { useState: useStateA, useEffect: useEffectA, useRef: useRefA } = React;
 
+// 페이지 하단 연락처 (기업 홈페이지 푸터처럼 작게)
+function SiteFooterA() {
+  return (
+    <footer className="site-footer">
+      <div>제주 성전 농장</div>
+      <div>문의 010-7315-0756</div>
+    </footer>
+  );
+}
+
 // 송금 앱(토스 등)이 클립보드에서 은행·계좌를 알아보도록 은행명과 금액을 같이 복사
 function copyAccountA(total, showToast) {
   const text = total > 0
@@ -18,11 +28,39 @@ function VariantA() {
   const [toastShow, setToastShow] = useStateA(false);
   const [success, setSuccess] = useStateA(false);
   const [submitting, setSubmitting] = useStateA(false);
-  // 입력칸에 포커스가 있으면(=가상 키보드가 떠 있으면) 하단 버튼을 숨겨 칸을 가리지 않게
-  const [typing, setTyping] = useStateA(false);
+  // 가상 키보드가 떠 있는 동안 하단 버튼을 숨겨 입력칸을 가리지 않게.
+  // 아이폰은 키보드를 내려도 포커스가 남는 경우가 있어서 포커스만으로 판단하지 않고
+  // visualViewport 높이로 키보드가 실제로 떠 있는지 함께 본다.
+  const [focused, setFocused] = useStateA(false);
+  const [kbOpen, setKbOpen] = useStateA(false);
   const isTextField = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') && !el.readOnly;
-  const onFieldFocus = (e) => { if (isTextField(e.target)) setTyping(true); };
-  const onFieldBlur = (e) => { if (isTextField(e.target)) setTyping(false); };
+  const onFieldFocus = (e) => { if (isTextField(e.target)) setFocused(true); };
+  const onFieldBlur = (e) => {
+    if (!isTextField(e.target)) return;
+    setFocused(false);
+    // 다른 입력칸으로 옮겨간 게 아니면, 키보드가 밀어 올린 화면을 원위치
+    setTimeout(() => { if (!isTextField(document.activeElement)) window.scrollTo(0, 0); }, 100);
+  };
+  useEffectA(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    let maxH = vv.height;
+    const onResize = () => {
+      maxH = Math.max(maxH, vv.height);
+      const open = vv.height < maxH - 120;   // 키보드는 보통 200px 이상
+      setKbOpen(open);
+      if (!open) window.scrollTo(0, 0);      // 키보드가 내려가면 밀려 올라간 화면 복구
+    };
+    const onRotate = () => { maxH = 0; setTimeout(onResize, 300); };
+    vv.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onRotate);
+    return () => {
+      vv.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onRotate);
+    };
+  }, []);
+  // visualViewport가 없는 오래된 브라우저는 포커스만으로 판단
+  const typing = focused && (window.visualViewport ? kbOpen : true);
   const toastT = useRefA();
 
   const showToast = (m) => {
@@ -42,6 +80,9 @@ function VariantA() {
     setAddrOpen(false);
   };
   const openAddr = (target) => { setAddrTarget(target); setAddrOpen(true); };
+
+  // 상품 사진 크게 보기 { src, alt }
+  const [zoom, setZoom] = useStateA(null);
 
   // 상세 주소가 비어 있으면 바로 보내지 않고 확인 팝업
   const [confirmNoDetail, setConfirmNoDetail] = useStateA(false);
@@ -101,23 +142,17 @@ function VariantA() {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66C8 15 14 13 17 13h2V8h-2z"/></svg>
             제주 성전 농장
           </span>
-          <h1>2026 제주 성전 <span className="orange">귤</span>이<br/>나왔어요</h1>
-          <p className="sub">
-            <b>판매 시작</b> 2026.12.15부터<br/>
-            신선한 귤을 바로 받아보세요.
-          </p>
-          <div className="hero-actions">
+          <h1>2026 제주 성전 <span className="orange">귤</span> 주문</h1>
+          <div className="hero-row">
+            <p className="sub"><b>첫 발송</b> 2026.12.15</p>
             <button className="share-page-btn" onClick={() => window.sharePageWithToast(showToast)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
               주문 페이지 공유하기
             </button>
-            <a className="share-page-btn" href="tel:010-7315-0756">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>
-              문의 010-7315-0756
-            </a>
           </div>
           <div className="hero-photo">
-            <span className="cap">제주 성전 농장 · 귤밭</span>
+            <img className="hero-photo-img" src="img/farm.jpg" alt="제주 성전 농장 귤밭" />
+            <span className="cap">제주 성전 농장</span>
           </div>
         </section>
 
@@ -129,7 +164,10 @@ function VariantA() {
 
           <div className={`prod ${s.qty.kg5 > 0 ? 'has' : ''}`} onClick={() => s.qty.kg5 === 0 && s.bump('kg5', 1)}>
             <div className="prod-top">
-              <div className="prod-img b5"><img src="img/5kg.jpg" alt="5kg 선물용 귤 상자" /></div>
+              <button type="button" className="prod-img b5 zoomable" aria-label="5kg 선물용 사진 크게 보기"
+                onClick={(e) => { e.stopPropagation(); setZoom({ src: 'img/5kg-large.jpg', alt: '5kg 선물용 귤 상자' }); }}>
+                <img src="img/5kg.jpg" alt="5kg 선물용 귤 상자" />
+              </button>
               <div className="prod-meta">
                 <div className="prod-title">
                   <strong>5kg 선물용</strong>
@@ -144,7 +182,10 @@ function VariantA() {
 
           <div className={`prod ${s.qty.kg10 > 0 ? 'has' : ''}`} onClick={() => s.qty.kg10 === 0 && s.bump('kg10', 1)}>
             <div className="prod-top">
-              <div className="prod-img"><img src="img/10kg.jpg" alt="10kg 일반 귤 상자" /></div>
+              <button type="button" className="prod-img zoomable" aria-label="10kg 일반 사진 크게 보기"
+                onClick={(e) => { e.stopPropagation(); setZoom({ src: 'img/10kg-large.jpg', alt: '10kg 일반 귤 상자' }); }}>
+                <img src="img/10kg.jpg" alt="10kg 일반 귤 상자" />
+              </button>
               <div className="prod-meta">
                 <div className="prod-title">
                   <strong>10kg 일반</strong>
@@ -280,6 +321,7 @@ function VariantA() {
               </ul>
             </div>
           </div>
+          <SiteFooterA />
         </section>
       </div>
 
@@ -295,6 +337,13 @@ function VariantA() {
 
       <window.AddressModal open={addrOpen} onClose={() => setAddrOpen(false)} onPick={onPickAddr} />
       <Toast message={toastMsg} show={toastShow} />
+
+      {zoom && (
+        <div className="zoom-scrim" role="dialog" aria-modal="true" aria-label={zoom.alt} onClick={() => setZoom(null)}>
+          <img src={zoom.src} alt={zoom.alt} />
+          <button type="button" className="zoom-close" aria-label="닫기" onClick={() => setZoom(null)}>×</button>
+        </div>
+      )}
 
       {confirmNoDetail && (
         <div className="confirm-scrim" role="dialog" aria-modal="true">
@@ -366,14 +415,12 @@ function SuccessScreenA({ state: s, onNewOrder, showToast }) {
         <div className="summary" style={{ background: 'rgba(245,146,62,.08)', borderColor: 'rgba(245,146,62,.3)' }}>
           <h4 style={{ color: 'var(--orange-deep)' }}>입금 계좌</h4>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>농협 352-1850-9917-13</div>
-          <div style={{ fontSize: 13, color: '#6B6355', marginBottom: 4 }}>예금주 김용호 · 입금자명 <b>{s.depositor}</b></div>
-          <div style={{ fontSize: 13, color: '#6B6355', marginBottom: 10 }}>
-            문의 <a href="tel:010-7315-0756" style={{ color: 'var(--ink)', fontWeight: 700, textDecoration: 'none' }}>010-7315-0756</a>
-          </div>
+          <div style={{ fontSize: 13, color: '#6B6355', marginBottom: 10 }}>예금주 김용호 · 입금자명 <b>{s.depositor}</b></div>
           <button className="cta" style={{ height: 52 }} onClick={onCopy} data-html2canvas-ignore="true">
             <IconCopy style={{ width: 18, height: 18, stroke: 'white' }} /> 계좌번호 복사하기
           </button>
         </div>
+        <SiteFooterA />
        </div>
 
         <div className="cta-row">
