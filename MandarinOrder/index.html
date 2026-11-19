@@ -71,6 +71,8 @@
     display: flex;
     flex-direction: column;
   }
+  /* 모바일: 키보드 등으로 화면이 밀려도 바깥 배경이 드러나 보이지 않게 같은 색으로 */
+  @media (max-width: 767px) { body { background: var(--cream); } }
   /* variant 래퍼(.v-a 등)가 내용 높이만큼 늘어나지 않도록 */
   .app-shell > * { min-height: 0; }
   @media (min-width: 768px) {
@@ -189,11 +191,13 @@
   }
   .v-a .hero-a .sub b { color: var(--leaf-deep); font-weight: 600; }
 
-  /* 두 버튼을 한 줄에 반씩. 큰 글씨 모드 등으로 넘치면 줄바꿈 */
-  .hero-actions { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; }
-  .hero-actions .share-page-btn { flex: 1 1 0; justify-content: center; padding: 0 8px; font-size: calc(13px * var(--fs-scale)); }
+  /* 첫 발송일(왼쪽) + 공유 버튼(오른쪽) 한 줄. 좁으면 버튼이 아래로 */
+  .hero-row {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px 12px;
+  }
   .share-page-btn {
-    display: inline-flex; align-items: center; gap: 5px;
+    display: inline-flex; align-items: center; gap: 6px;
     height: 40px; padding: 0 14px;
     text-decoration: none; white-space: nowrap;
     border: 1.5px solid var(--leaf); border-radius: 999px;
@@ -212,7 +216,7 @@
       radial-gradient(circle at 70% 60%, #E07B2C 0%, transparent 45%),
       linear-gradient(135deg, #A8C080 0%, #6B8E4E 100%);
     position: relative; overflow: hidden;
-    display: flex; align-items: end; padding: 16px;
+    display: flex; align-items: end; justify-content: flex-end; padding: 16px;
     color: white;
   }
   .v-a .hero-photo::before {
@@ -223,6 +227,11 @@
       radial-gradient(circle at 75% 35%, rgba(224,123,44,.6) 0 12px, transparent 13px),
       radial-gradient(circle at 35% 70%, rgba(245,146,62,.55) 0 16px, transparent 17px),
       radial-gradient(circle at 80% 75%, rgba(245,198,126,.55) 0 11px, transparent 12px);
+  }
+  /* 실사진: 그라데이션 장식 위에 덮음 (사진이 안 뜨면 장식이 그대로 보임) */
+  .v-a .hero-photo .hero-photo-img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; z-index: 1;
   }
   .v-a .hero-photo .cap {
     position: relative; z-index: 2;
@@ -1118,6 +1127,27 @@
     font-size: calc(16px * var(--fs-scale)); cursor: pointer;
   }
 
+  /* 상품 사진: 버튼으로 감싸 눌러서 크게 보기 */
+  .prod-img.zoomable { padding: 0; cursor: zoom-in; position: relative; font: inherit; }
+  .prod-img.zoomable::after {
+    content: ''; position: absolute; right: 4px; bottom: 4px; width: 18px; height: 18px;
+    border-radius: 50%; background: rgba(28,26,21,.55) no-repeat center / 12px
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.3-4.3M11 8v6M8 11h6'/%3E%3C/svg%3E");
+  }
+  .zoom-scrim {
+    position: absolute; inset: 0; z-index: 160;
+    background: rgba(28,26,21,.9);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; cursor: zoom-out; animation: fadeIn .18s ease;
+  }
+  .zoom-scrim img { max-width: 100%; max-height: 100%; border-radius: 12px; object-fit: contain; }
+  .zoom-close {
+    /* 오른쪽 위는 '큰 글씨' 버튼과 겹쳐서 왼쪽 위 */
+    position: absolute; top: 14px; left: 14px; width: 40px; height: 40px;
+    border-radius: 50%; border: 0; background: rgba(255,255,255,.92);
+    font-size: 22px; line-height: 1; color: var(--ink); cursor: pointer;
+  }
+
   /* 상세 주소 빈칸 확인 팝업 */
   .confirm-scrim {
     position: absolute; inset: 0; z-index: 150;
@@ -1142,6 +1172,14 @@
   .confirm-actions .secondary-btn {
     border: 1.5px solid var(--ink); border-radius: 16px; background: white;
     font-family: inherit; font-weight: 700; font-size: calc(16px * var(--fs-scale)); cursor: pointer;
+  }
+
+  /* 페이지 하단 연락처 (작게) */
+  .site-footer {
+    margin-top: 28px; padding-top: 14px;
+    border-top: 1px solid var(--line);
+    text-align: center; color: #A39C8D;
+    font-size: calc(11px * var(--fs-scale)); line-height: 1.7;
   }
 
   /* 저장 이미지 영역: 캡처 시 위아래 여백 확보 */
