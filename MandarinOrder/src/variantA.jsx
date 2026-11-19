@@ -83,6 +83,8 @@ function VariantA() {
 
   // 상품 사진 크게 보기 { src, alt }
   const [zoom, setZoom] = useStateA(null);
+  // '성전귤?' 설명 창
+  const [aboutOpen, setAboutOpen] = useStateA(false);
 
   // 상세 주소가 비어 있으면 바로 보내지 않고 확인 팝업
   const [confirmNoDetail, setConfirmNoDetail] = useStateA(false);
@@ -124,7 +126,7 @@ function VariantA() {
   const onNewOrder = () => {
     s.setQty({ kg10: 0, kg5: 0 });
     s.setOrderer({ name: '', phone: '', zip: '', addr: '', detail: '' });
-    s.setSelfReceive(true);
+    s.setSelfReceive(false);
     s.setReceiver({ name: '', zip: '', addr: '', detail: '', phone: '' });
     s.setDepositor('');
     s.setAgreed(false);
@@ -143,24 +145,36 @@ function VariantA() {
             제주 성전 농장
           </span>
           <h1>2026 제주 성전 <span className="orange">귤</span> 주문</h1>
-          <div className="hero-row">
-            <p className="sub"><b>첫 발송</b> 2026.12.15</p>
-            <button className="share-page-btn" onClick={() => window.sharePageWithToast(showToast)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
-              주문 페이지 공유하기
-            </button>
-          </div>
+          <p className="sub"><b>첫 발송</b> 2026.12.15</p>
           <div className="hero-photo">
             <img className="hero-photo-img" src="img/farm.jpg" alt="제주 성전 농장 귤밭" />
             <span className="cap">제주 성전 농장</span>
           </div>
+          <div className="hero-actions">
+            <button type="button" className="share-page-btn" onClick={() => setAboutOpen(true)}>
+              🍊 성전귤?
+            </button>
+            <button className="share-page-btn" aria-label="주문 페이지 공유하기" onClick={() => window.sharePageWithToast(showToast)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+              공유하기
+            </button>
+            <button type="button" className="share-page-btn font-btn"
+              onClick={() => window.dispatchEvent(new Event('toggle-bigfont'))}>
+              <span className="dot" />큰 글씨
+            </button>
+          </div>
         </section>
 
+        {/* 주문 입력 영역 제목 */}
+        <div className="form-head">
+          <h2>주문 정보</h2>
+        </div>
+
         {/* 상품 선택 */}
-        <section className="section-a">
-          <div className="num"><span className="num-dot">1</span>귤 상자 선택</div>
+        <section className="section-a section-first">
+          <div className="num"><span className="num-dot">1</span>상품 종류 및 수량</div>
           <h2>상품을 선택해 주세요</h2>
-          <p className="section-desc">버튼을 눌러 수량을 정해주세요. 여러 박스를 같이 담을 수 있어요.</p>
+          <p className="section-desc">버튼을 눌러 수량을 정해주세요. 여러 박스를 같이 주문할 수 있어요.</p>
 
           <div className={`prod ${s.qty.kg5 > 0 ? 'has' : ''}`} onClick={() => s.qty.kg5 === 0 && s.bump('kg5', 1)}>
             <div className="prod-top">
@@ -243,7 +257,7 @@ function VariantA() {
           <div className="toggle-row">
             <div>
               <div className="label">본인이 받아요</div>
-              <div className="sub">주문자 이름·연락처로 받아요.</div>
+              <div className="sub">주문자와 이름·연락처 동일</div>
             </div>
             <div className={`switch ${s.selfReceive ? 'on' : ''}`} onClick={() => s.setSelfReceive(v => !v)} role="switch" aria-checked={s.selfReceive} />
           </div>
@@ -337,6 +351,23 @@ function VariantA() {
 
       <window.AddressModal open={addrOpen} onClose={() => setAddrOpen(false)} onPick={onPickAddr} />
       <Toast message={toastMsg} show={toastShow} />
+
+      {aboutOpen && (
+        <div className="confirm-scrim" role="dialog" aria-modal="true" aria-label="성전귤이란?" onClick={() => setAboutOpen(false)}>
+          <div className="confirm-box about-box" onClick={e => e.stopPropagation()}>
+            <h3>🍊 성전귤이란?</h3>
+            <p className="about-lead">늦게 익어 더욱 특별한 제주 감귤!</p>
+            <p>성전귤은 일반 조생귤보다 늦게 익는 보통온주 계열의 감귤 품종입니다.</p>
+            <h4>성전귤만의 특별한 매력</h4>
+            <ul className="about-list">
+              <li><b>풍부한 달콤함</b>신맛은 비교적 적고 단맛이 돋보이는 귤</li>
+              <li><b>얇고 부드러운 껍질</b>껍질을 벗기기 편하고 과육이 부드러운 귤</li>
+              <li><b>흔하지 않은 품종</b>익숙한 조생귤과는 또 다른 매력을 지닌 귤</li>
+            </ul>
+            <button type="button" className="cta" onClick={() => setAboutOpen(false)}>닫기</button>
+          </div>
+        </div>
+      )}
 
       {zoom && (
         <div className="zoom-scrim" role="dialog" aria-modal="true" aria-label={zoom.alt} onClick={() => setZoom(null)}>

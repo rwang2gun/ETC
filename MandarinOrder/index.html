@@ -191,11 +191,10 @@
   }
   .v-a .hero-a .sub b { color: var(--leaf-deep); font-weight: 600; }
 
-  /* 첫 발송일(왼쪽) + 공유 버튼(오른쪽) 한 줄. 좁으면 버튼이 아래로 */
-  .hero-row {
-    display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 8px 12px;
-  }
+  /* 첫 발송 아래: 공유 버튼 + 큰 글씨 버튼 한 줄 */
+  .hero-actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+  /* 버튼들이 가로폭을 꽉 채우도록 (오른쪽 빈 공간 없이) */
+  .hero-actions > .share-page-btn { flex: 1 1 auto; justify-content: center; padding: 0 10px; }
   .share-page-btn {
     display: inline-flex; align-items: center; gap: 6px;
     height: 40px; padding: 0 14px;
@@ -242,6 +241,15 @@
   .section-a {
     padding: 28px 20px 10px;
   }
+  /* '주문 정보' 제목: 위 소개 영역과 간격을 두고 시작 */
+  .form-head { padding: 40px 20px 0; }
+  .form-head h2 {
+    margin: 0; padding-bottom: 12px;
+    font-size: calc(22px * var(--fs-scale)); font-weight: 800;
+    letter-spacing: -0.02em; color: var(--ink);
+    border-bottom: 2px solid var(--ink);
+  }
+  .section-a.section-first { padding-top: 20px; }
   .section-a > h2 {
     font-size: calc(18px * var(--fs-scale));
     font-weight: 700; margin: 0 0 4px; color: var(--ink);
@@ -1142,7 +1150,6 @@
   }
   .zoom-scrim img { max-width: 100%; max-height: 100%; border-radius: 12px; object-fit: contain; }
   .zoom-close {
-    /* 오른쪽 위는 '큰 글씨' 버튼과 겹쳐서 왼쪽 위 */
     position: absolute; top: 14px; left: 14px; width: 40px; height: 40px;
     border-radius: 50%; border: 0; background: rgba(255,255,255,.92);
     font-size: 22px; line-height: 1; color: var(--ink); cursor: pointer;
@@ -1182,6 +1189,23 @@
     font-size: calc(11px * var(--fs-scale)); line-height: 1.7;
   }
 
+  /* '성전귤?' 설명 창 (확인 팝업 모양 재사용) */
+  .about-box { max-height: 100%; overflow-y: auto; }
+  .about-box .about-lead { color: var(--orange-deep); font-weight: 700; margin-bottom: 6px; }
+  .about-box h4 {
+    margin: 18px 0 10px; font-size: calc(15px * var(--fs-scale));
+    font-weight: 700; color: var(--leaf-deep);
+  }
+  .about-list { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 10px; word-break: keep-all; }
+  .about-list li {
+    background: var(--cream); border: 1px solid var(--line); border-radius: 12px;
+    padding: 10px 12px; font-size: calc(13px * var(--fs-scale)); color: #6B6355; line-height: 1.5;
+  }
+  .about-list li b {
+    display: block; color: var(--ink); font-size: calc(14px * var(--fs-scale)); margin-bottom: 2px;
+  }
+  .about-box .cta { height: 52px; }
+
   /* 저장 이미지 영역: 캡처 시 위아래 여백 확보 */
   .order-card { padding: 8px 4px 4px; background: var(--cream); }
 
@@ -1216,19 +1240,10 @@
   .v-c .success-screen .check-circle { background: var(--leaf-deep); }
   .v-c .success-screen .summary { border-radius: 4px; background: white; }
 
-  /* Tweaks panel */
-  .tweaks-toggle {
-    position: fixed; top: 20px; right: 20px; z-index: 500;
-    background: white; border: 1.5px solid var(--line);
-    padding: 10px 14px; border-radius: 10px;
-    font-family: inherit; font-size: 13px; font-weight: 600;
-    cursor: pointer; box-shadow: var(--shadow-sm);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .tweaks-toggle .dot {
-    width: 8px; height: 8px; border-radius: 50%; background: #D8D1C2;
-  }
-  .tweaks-toggle .dot.on { background: var(--leaf); }
+  /* 큰 글씨 버튼: 공유 버튼과 같은 모양. 꺼짐=회색 점, 켜짐=초록 바탕 */
+  .font-btn .dot { width: 8px; height: 8px; border-radius: 50%; background: #D8D1C2; }
+  :root[data-bigfont] .font-btn { background: var(--leaf); border-color: var(--leaf); color: white; }
+  :root[data-bigfont] .font-btn .dot { background: white; }
 
 </style>
 </head>
@@ -1238,10 +1253,6 @@
   <!-- populated by React -->
 </div>
 
-<button class="tweaks-toggle" id="tweaksToggle">
-  <span class="dot" id="tweaksDot"></span>
-  <span>큰 글씨</span>
-</button>
 
 <!-- 카카오 우편번호 서비스 (무료, 키 불필요). daumcdn 도메인은 2026-11-30 종료 → kakaocdn -->
 <script src="https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>

@@ -49,7 +49,7 @@ function useCountUp(target, duration = 420) {
 function useOrderState() {
   const [qty, setQty] = useState({ kg10: 0, kg5: 0 });
   const [orderer, setOrderer] = useState({ name: '', phone: '', zip: '', addr: '', detail: '' });
-  const [selfReceive, setSelfReceive] = useState(true);
+  const [selfReceive, setSelfReceive] = useState(false);  // '본인이 받아요' 기본 꺼짐
   const [receiver, setReceiver] = useState({ name: '', zip: '', addr: '', detail: '', phone: '' });
   const [depositor, setDepositor] = useState('');
   const [agreed, setAgreed] = useState(false);
