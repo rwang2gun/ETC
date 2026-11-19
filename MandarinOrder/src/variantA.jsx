@@ -90,26 +90,72 @@ function VariantA() {
   const [confirmNoDetail, setConfirmNoDetail] = useStateA(false);
   const detailRef = useRefA();
 
+  // 화면 안 특정 요소로 이동 (부드러운 스크롤은 키보드가 올라올 때 어긋날 수 있어 즉시 이동)
+  //  - at: 'third' 화면 위 1/3 지점 / 'top' 화면 맨 위
+  const scrollToEl = (el, { at = 'third', focus = false } = {}) => {
+    if (!el) return;
+    const body = el.closest('.screen-body');
+    if (body) {
+      const prev = body.style.scrollBehavior;
+      body.style.scrollBehavior = 'auto';
+      const top = el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop;
+      body.scrollTop = Math.max(0, at === 'top' ? top - 8 : top - body.clientHeight / 3);
+      body.style.scrollBehavior = prev;
+    }
+    if (focus) el.focus({ preventScroll: true });
+    else {
+      // 입력칸이 아닌 곳(주소 검색 버튼·동의)으로 갈 땐 이전 칸 커서를 빼서 키보드를 내리고
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+      // 어디로 왔는지 보이게 주황 테두리를 잠깐 깜빡임
+      if (at !== 'top') {
+        el.classList.remove('jump-highlight');
+        void el.offsetWidth;  // 연달아 눌러도 애니메이션이 다시 시작되도록
+        el.classList.add('jump-highlight');
+        clearTimeout(el._jumpT);
+        el._jumpT = setTimeout(() => el.classList.remove('jump-highlight'), 2400);
+      }
+    }
+  };
+  const fieldEl = (name) => document.querySelector(`.v-a [data-field="${name}"]`);
+
+  // 비어 있는 칸 중 화면에서 가장 위에 있는 것 (페이지 순서대로 검사)
+  const digits = (v) => v.replace(/\D/g, '').length;
+  const firstMissing = () => {
+    if (s.orderer.name.trim().length < 2) return { field: 'orderer-name', focus: true, msg: '주문하시는 분 이름을 입력해 주세요' };
+    if (digits(s.orderer.phone) < 10) return { field: 'orderer-phone', focus: true, msg: '주문하시는 분 휴대폰 번호를 입력해 주세요' };
+    if (!s.receiver.zip) return { field: 'addr-search', focus: false, msg: '주소 검색 버튼을 눌러 주소를 찾아 주세요' };
+    if (!s.selfReceive) {
+      if (s.receiver.name.trim().length < 2) return { field: 'receiver-name', focus: true, msg: '받는 분 이름을 입력해 주세요' };
+      if (digits(s.receiver.phone) < 10) return { field: 'receiver-phone', focus: true, msg: '받는 분 휴대폰 번호를 입력해 주세요' };
+    }
+    if (s.depositor.trim().length < 2) return { field: 'depositor', focus: true, msg: '입금자명을 입력해 주세요' };
+    if (!s.agreed) return { field: 'consent', focus: false, msg: '개인정보 수집 · 이용에 동의해 주세요' };
+    return null;
+  };
+
   const onSubmit = () => {
-    if (!s.isValid || submitting) return;
+    if (submitting) return;
+    // 상품을 안 골랐으면 '주문 정보' 제목이 맨 위에 오게
+    if (s.totalCount === 0) {
+      scrollToEl(document.querySelector('.v-a .form-head'), { at: 'top' });
+      return;
+    }
+    // 빠진 정보가 있으면 그 칸으로
+    if (!s.isValid) {
+      const miss = firstMissing();
+      if (miss) {
+        scrollToEl(fieldEl(miss.field), { focus: miss.focus });
+        showToast(miss.msg);
+      }
+      return;
+    }
     if (!s.receiver.detail.trim()) { setConfirmNoDetail(true); return; }
     doSubmit();
   };
 
   const onGoEditDetail = () => {
     setConfirmNoDetail(false);
-    const el = detailRef.current;
-    if (!el) return;
-    // 부드러운 스크롤은 키보드가 올라올 때 어긋날 수 있어 즉시 이동 후 포커스
-    const body = el.closest('.screen-body');
-    if (body) {
-      const prev = body.style.scrollBehavior;
-      body.style.scrollBehavior = 'auto';
-      const top = el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop;
-      body.scrollTop = Math.max(0, top - body.clientHeight / 3);
-      body.style.scrollBehavior = prev;
-    }
-    el.focus({ preventScroll: true });
+    scrollToEl(detailRef.current, { focus: true });
   };
 
   const onConfirmSubmit = () => { setConfirmNoDetail(false); doSubmit(); };
@@ -240,12 +286,12 @@ function VariantA() {
           <h2>누가 주문하시나요?</h2>
           <div style={{ marginBottom: 14 }}>
             <label className="field-label">이름 <span className="req">*</span></label>
-            <input className="input" placeholder="홍길동" value={s.orderer.name}
+            <input data-field="orderer-name" className="input" placeholder="홍길동" value={s.orderer.name}
               onChange={e => s.setOrderer(o => ({ ...o, name: e.target.value }))} />
           </div>
           <div>
             <label className="field-label">휴대폰 번호 <span className="req">*</span></label>
-            <input className="input" type="tel" inputMode="numeric" placeholder="010-0000-0000" value={s.orderer.phone}
+            <input data-field="orderer-phone" className="input" type="tel" inputMode="numeric" placeholder="010-0000-0000" value={s.orderer.phone}
               onChange={e => s.setOrderer(o => ({ ...o, phone: formatPhone(e.target.value) }))} />
           </div>
         </section>
@@ -266,7 +312,7 @@ function VariantA() {
             <div>
               <label className="field-label">우편번호 <span className="req">*</span></label>
               <div className="row-2">
-                <button className="addr-btn" onClick={() => openAddr('receiver')}>
+                <button data-field="addr-search" className="addr-btn" onClick={() => openAddr('receiver')}>
                   <IconSearch /> 검색
                 </button>
                 <input className="input" placeholder="00000" readOnly value={s.receiver.zip} />
@@ -284,14 +330,14 @@ function VariantA() {
             {!s.selfReceive && (
               <div style={{ animation: 'fadeIn .2s ease' }}>
                 <label className="field-label">받는 분 이름 <span className="req">*</span></label>
-                <input className="input" placeholder="김제주" value={s.receiver.name}
+                <input data-field="receiver-name" className="input" placeholder="김제주" value={s.receiver.name}
                   onChange={e => s.setReceiver(r => ({ ...r, name: e.target.value }))} />
               </div>
             )}
             {!s.selfReceive && (
               <div style={{ animation: 'fadeIn .2s ease' }}>
                 <label className="field-label">받는 분 휴대폰 <span className="req">*</span></label>
-                <input className="input" type="tel" inputMode="numeric" placeholder="010-0000-0000" value={s.receiver.phone}
+                <input data-field="receiver-phone" className="input" type="tel" inputMode="numeric" placeholder="010-0000-0000" value={s.receiver.phone}
                   onChange={e => s.setReceiver(r => ({ ...r, phone: formatPhone(e.target.value) }))} />
               </div>
             )}
@@ -312,7 +358,7 @@ function VariantA() {
           </div>
           <div style={{ marginTop: 16 }}>
             <label className="field-label">입금자명 <span className="req">*</span></label>
-            <input className="input" placeholder="입금 시 표시될 이름" value={s.depositor}
+            <input data-field="depositor" className="input" placeholder="입금 시 표시될 이름" value={s.depositor}
               onChange={e => s.setDepositor(e.target.value)} />
             <p style={{ fontSize: 12, color: '#8B8578', margin: '8px 0 0', lineHeight: 1.6 }}>
               · 주문자명과 다를 경우 확인이 어려워요.<br/>
@@ -323,7 +369,7 @@ function VariantA() {
 
         {/* 동의 */}
         <section className="section-a" style={{ paddingBottom: 120 }}>
-          <div className={`consent ${s.agreed ? 'on' : ''}`} onClick={() => s.setAgreed(v => !v)}>
+          <div data-field="consent" className={`consent ${s.agreed ? 'on' : ''}`} onClick={() => s.setAgreed(v => !v)}>
             <div className="check">
               {s.agreed && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
             </div>
@@ -341,7 +387,8 @@ function VariantA() {
 
       {/* 하단 고정 CTA */}
       <div className="cta-dock" style={typing ? { display: 'none' } : undefined}>
-        <button className="cta" disabled={!s.isValid || submitting} onClick={onSubmit}>
+        {/* 미완성 상태에서도 눌러서 빠진 칸으로 이동하도록 disabled 대신 회색 모양만 */}
+        <button className={`cta ${!s.isValid ? 'is-incomplete' : ''}`} disabled={submitting} onClick={onSubmit}>
           {submitting ? '주문을 보내는 중…'
             : s.totalCount === 0 ? '상품을 선택해 주세요'
             : !s.isValid ? '정보를 모두 입력해 주세요'

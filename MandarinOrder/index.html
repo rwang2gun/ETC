@@ -159,6 +159,18 @@
   .cta:disabled {
     background: #D8D1C2; box-shadow: none; color: #8B8578; cursor: not-allowed;
   }
+  /* 빠진 칸으로 이동했을 때 위치 표시 (주소 검색 버튼·동의 칸) */
+  .jump-highlight {
+    outline: 3px solid var(--orange); outline-offset: 3px;
+    animation: jumpPulse .8s ease-in-out 3;
+  }
+  @keyframes jumpPulse {
+    0%, 100% { outline-color: var(--orange); }
+    50% { outline-color: rgba(245,146,62,.15); }
+  }
+
+  /* 미완성: 회색 모양이지만 눌러서 빠진 칸으로 이동 */
+  .cta.is-incomplete { background: #D8D1C2; box-shadow: none; color: #8B8578; cursor: pointer; }
 
   /* Keyboard hint */
   .kbd-hint {
